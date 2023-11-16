@@ -46,6 +46,7 @@ export class AuthController {
   @ApiCreatedResponse({ description: 'User created' })
   @ApiBody({ type: UserCreateDto })
   @ApiBearerAuth('JWT-auth')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({ type: User })
   @Post('create/')

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Csv } from './csv.entity';
 import { Model } from 'mongoose';
@@ -6,7 +6,6 @@ import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import phone from 'phone';
 import { CsvInsertDto } from './csv.dto';
-import { stringify } from 'csv-stringify';
 
 @Injectable()
 export class CsvService {
@@ -76,6 +75,7 @@ export class CsvService {
                   console.log(data.length);
                   lenghtOfData += data.length;
                   const duplicates = saver(data, fileName, model);
+
                   data = [];
                 }
               } else {
@@ -155,50 +155,5 @@ export class CsvService {
   async getDataLenght() {
     const count = await this.csvModel.count();
     return count;
-  }
-
-  async exportDataToFile(): Promise<any> {
-    const fileName = 'Export_csv_file.csv';
-    const data = await this.csvModel
-      .find({})
-      .select([
-        '_id',
-        'phoneNumber',
-        'firstName',
-        'lastName',
-        'carrier',
-        'listTag',
-      ]);
-
-    const columns = {
-      _id: '_id',
-      phoneNumber: 'phoneNumber',
-      firstName: 'firstName',
-      lastName: 'lastName',
-      carrier: 'carrier',
-      listTag: 'listTag',
-    };
-    const writingPromise = new Promise(async (res, rej) => {
-      stringify(
-        data,
-        { header: true, columns: columns },
-        async (err, output) => {
-          if (err) throw err;
-          const filePromis = new Promise((resolve, reject) => {
-            fs.writeFile(fileName, output, (err) => {
-              if (err) throw err;
-              console.log('csv saved');
-              resolve('Success');
-            });
-          });
-          await filePromis;
-          res('Writed');
-        },
-      );
-    }).catch((e) => {
-      console.log(e);
-      throw new InternalServerErrorException(e);
-    });
-    return await writingPromise;
   }
 }

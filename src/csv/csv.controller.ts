@@ -3,12 +3,9 @@ import {
   Body,
   Controller,
   Get,
-  Header,
   InternalServerErrorException,
   Param,
   Post,
-  Res,
-  StreamableFile,
   UnsupportedMediaTypeException,
   UploadedFiles,
   UseGuards,
@@ -17,9 +14,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CsvService } from './csv.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from './api-file.fields.decorator';
-import { join, resolve } from 'path';
-import { Response } from 'express';
-import { createReadStream } from 'fs';
 
 @ApiTags('CSV controller')
 @UseGuards(AuthGuard)
@@ -53,7 +47,7 @@ export class CsvController {
     return response;
   }
 
-  @ApiOperation({ summary: 'Read data from existed csv file' })
+  @ApiOperation({ summary: 'Read data from existed csv file in server' })
   @Get('/read/:fileName')
   async readCsv(@Param('fileName') fileName: string) {
     try {
@@ -99,20 +93,6 @@ export class CsvController {
       return await res;
     } catch {
       throw new InternalServerErrorException();
-    }
-  }
-
-  @ApiOperation({ summary: 'Get file' })
-  @Header('Content-Type', 'application/octet-stream')
-  @Header('Content-Disposition', 'attachment; filename="Export_csv_file.csv"')
-  @Get('/export/')
-  async exportFile(@Res() res: Response) {
-    const fileWritingResult = await this.csvService.exportDataToFile();
-    if (fileWritingResult) {
-      const file = createReadStream(
-        join(process.cwd(), 'Export_csv_file.csv'),
-      ).pipe(res);
-      return;
     }
   }
 }
