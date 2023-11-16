@@ -1,4 +1,4 @@
-import { Injectable, StreamableFile } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Csv } from './csv.entity';
 import { Model } from 'mongoose';
@@ -7,8 +7,6 @@ import { parse } from 'csv-parse';
 import phone from 'phone';
 import { CsvInsertDto } from './csv.dto';
 import { stringify } from 'csv-stringify';
-import { join } from 'path';
-import { error } from 'console';
 
 @Injectable()
 export class CsvService {
@@ -18,12 +16,37 @@ export class CsvService {
     return await fs.createReadStream(`./csvs/${fileName}`, 'utf8');
   }
 
+  async saveDataToBD(data: CsvInsertDto[], fileName: string, model: any) {
+    let dublicateInMongo;
+    console.log(1);
+    try {
+      await model.insertMany(data, {
+        ordered: false,
+      });
+    } catch (e) {
+      if (e.code === 11000) {
+        const csvIds = await e.result.result.writeErrors.map((error) => {
+          return error.err.op.phoneNumber;
+        });
+        dublicateInMongo = await csvIds.length;
+        await model.updateMany(
+          { phoneNumber: { $in: csvIds } },
+          { $push: { listTag: fileName } },
+        );
+      }
+    }
+    return dublicateInMongo;
+  }
+
   async readFile(fileName: string) {
-    const data: CsvInsertDto[] = [];
+    let data: CsvInsertDto[] = [];
+    let lenghtOfData = 0;
     const phones = new Set();
     let countOfDuplicateInFile: number = 0;
+    let dublicateInMongo: number = 0;
     const model = this.csvModel;
     let badCounter = 0;
+    const saver = this.saveDataToBD;
     const result = await new Promise(async (resolve, reject) => {
       (await this.createStream(fileName)).pipe(
         parse({
@@ -49,6 +72,12 @@ export class CsvService {
               };
               if (phonesSize !== phones.size) {
                 data.push(element);
+                if (data.length === 10000) {
+                  console.log(data.length);
+                  lenghtOfData += data.length;
+                  const duplicates = saver(data, fileName, model);
+                  data = [];
+                }
               } else {
                 countOfDuplicateInFile += 1;
               }
@@ -59,8 +88,9 @@ export class CsvService {
           .on('end', async function () {
             console.log('Data has been readed');
 
-            let dublicateInMongo: number = 0;
             try {
+              lenghtOfData += data.length;
+
               await model.insertMany(data, {
                 ordered: false,
               });
@@ -71,7 +101,7 @@ export class CsvService {
                     return error.err.op.phoneNumber;
                   },
                 );
-                dublicateInMongo = await csvIds.length;
+                dublicateInMongo += await csvIds.length;
                 await model.updateMany(
                   { phoneNumber: { $in: csvIds } },
                   { $push: { listTag: fileName } },
@@ -82,7 +112,7 @@ export class CsvService {
               notValid: badCounter,
               duplicateInFile: countOfDuplicateInFile,
               dublicateInMongo: dublicateInMongo,
-              data: data.length,
+              data: lenghtOfData,
             });
           })
           .on('error', function (error) {
@@ -166,7 +196,8 @@ export class CsvService {
         },
       );
     }).catch((e) => {
-      throw new error(e);
+      console.log(e);
+      throw new InternalServerErrorException(e);
     });
     return await writingPromise;
   }

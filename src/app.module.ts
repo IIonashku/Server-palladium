@@ -9,7 +9,7 @@ dotenv.config();
 @Module({
   imports: [
     MongooseModule.forRoot(
-      `mongodb+srv://palladium:${process.env.DATABASE_PASSWORD}@csvservice.xosm0mm.mongodb.net/`,
+      `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}${process.env.DATABASE}`,
       { dbName: 'test' },
     ),
     UserModule,
