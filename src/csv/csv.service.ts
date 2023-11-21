@@ -7,17 +7,24 @@ import { parse } from 'csv-parse';
 import phone from 'phone';
 import { CsvInsertDto } from './csv.dto';
 
+type allFilter = {
+  phoneNumber: object;
+  listTag: object;
+  carrier: object;
+};
+
+type optionalFilter = Partial<allFilter>;
+
 @Injectable()
 export class CsvService {
   constructor(@InjectModel(Csv.name) private readonly csvModel: Model<Csv>) {}
 
   async createStream(fileName) {
-    return await fs.createReadStream(`./csvs/${fileName}`, 'utf8');
+    return fs.createReadStream(`./csvs/${fileName}`, 'utf8');
   }
 
   async saveDataToBD(data: CsvInsertDto[], fileName: string, model: any) {
-    let dublicateInMongo;
-    console.log(1);
+    let dublicateInMongo: number;
     try {
       await model.insertMany(data, {
         ordered: false,
@@ -58,10 +65,9 @@ export class CsvService {
         })
           .on('data', async function (row) {
             const validPhone = phone(row[0]);
-            if (await validPhone.isValid) {
+            if (validPhone.isValid) {
               const phonesSize = phones.size;
               phones.add(row[0]);
-              row[0] = validPhone.phoneNumber;
               const element: CsvInsertDto = {
                 phoneNumber: row[0],
                 firstName: row[1],
@@ -72,7 +78,6 @@ export class CsvService {
               if (phonesSize !== phones.size) {
                 data.push(element);
                 if (data.length === 10000) {
-                  console.log(data.length);
                   lenghtOfData += data.length;
                   const duplicates = saver(data, fileName, model);
 
@@ -123,37 +128,34 @@ export class CsvService {
     return await result;
   }
 
-  async getAllData() {
+  async getData(skips: number, limits: number, filters: any = undefined) {
+    const f: optionalFilter = {};
+    if (filters.filters) {
+      if (filters.filters.phoneNumber)
+        f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
+      if (filters.filters.listTag)
+        f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
+      if (filters.filters.carrier)
+        f.carrier = { $regex: RegExp(filters.filters.carrier) };
+    }
     const data = await this.csvModel
-      .find({})
-      .select([
-        '_id',
-        'phoneNumber',
-        'firstName',
-        'lastName',
-        'carrier',
-        'listTag',
-      ]);
+      .find(f, {}, { skip: skips, limit: limits })
+      .select(['phoneNumber', 'firstName', 'lastName', 'carrier', 'listTag']);
     const jsonData = JSON.stringify(data);
     return jsonData;
   }
 
-  async getData(skips: number, limits: number) {
-    const data = await this.csvModel
-      .find({}, {}, { skip: skips, limit: limits })
-      .select([
-        '_id',
-        'phoneNumber',
-        'firstName',
-        'lastName',
-        'carrier',
-        'listTag',
-      ]);
-    const jsonData = JSON.stringify(data);
-    return jsonData;
-  }
-  async getDataLenght() {
-    const count = await this.csvModel.count();
+  async getDataLenght(filters?: any) {
+    const f: optionalFilter = {};
+    if (filters.filter) {
+      if (filters.filters.phoneNumber)
+        f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
+      if (filters.filters.listTag)
+        f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
+      if (filters.filters.carrier)
+        f.carrier = { $regex: RegExp(filters.filters.carrier) };
+    }
+    const count = await this.csvModel.count(f);
     return count;
   }
 }

@@ -22,27 +22,22 @@ import { ApiCsvFiles } from './api-file.fields.decorator';
 export class CsvController {
   constructor(private readonly csvService: CsvService) {}
 
-  @ApiOperation({ summary: 'Get all' })
-  @Get('/all/')
-  async getData() {
-    return await this.csvService.getAllData();
-  }
-
-  @Get('/count/')
-  async getDataLenght() {
-    return await this.csvService.getDataLenght();
+  @Post('/count/')
+  async getDataLenght(@Body() filters?: any) {
+    return await this.csvService.getDataLenght(filters);
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
   @Post('/data/')
-  async getAllData(@Body() options: any) {
-    if (!options.options.skips && !options.options.limits) {
+  async getAllData(@Body() options: any, @Body() filters: any) {
+    if (options.options.skips < 0 && options.options.limits < 0) {
       throw new BadRequestException('Options not correct');
     }
 
     const response = await this.csvService.getData(
       options.options.skips,
       options.options.limits,
+      filters,
     );
     return response;
   }
@@ -54,7 +49,7 @@ export class CsvController {
       const result = await this.csvService.readFile(fileName);
       return result;
     } catch (e) {
-      console.log(e);
+      throw new InternalServerErrorException();
     }
   }
 
@@ -62,7 +57,6 @@ export class CsvController {
   @ApiCsvFiles('files', true, 10)
   @ApiOperation({ summary: 'upload file' })
   async upload(@UploadedFiles() files: Express.Multer.File[]) {
-    console.log(files);
     if (files === undefined || files === null || files.length === 0) {
       throw new BadRequestException('No file founded(file expected)');
     }
