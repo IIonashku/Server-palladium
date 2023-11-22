@@ -84,7 +84,7 @@ export class CsvController {
             });
         });
       });
-      return await res;
+      return { result: await res };
     } catch {
       throw new InternalServerErrorException();
     }
