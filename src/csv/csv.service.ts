@@ -152,7 +152,7 @@ export class CsvService {
 
   async getDataLenght(filters?: any) {
     const f: optionalFilter = {};
-    if (filters.filter) {
+    if (filters.filters) {
       if (filters.filters.phoneNumber)
         f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
       if (filters.filters.listTag)
