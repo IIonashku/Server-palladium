@@ -20,7 +20,7 @@ export class CsvService {
   constructor(@InjectModel(Csv.name) private readonly csvModel: Model<Csv>) {}
 
   async createStream(fileName) {
-    return fs.createReadStream(`./csvs/${fileName}`, 'utf8');
+    return await fs.createReadStream(`./csvs/${fileName}`, 'utf8');
   }
 
   async saveDataToBD(data: CsvInsertDto[], fileName: string, model: any) {
@@ -52,9 +52,10 @@ export class CsvService {
     let dublicateInMongo: number = 0;
     const model = this.csvModel;
     let badCounter = 0;
+    const csvStream = await this.createStream(fileName);
     const saver = this.saveDataToBD;
     const result = await new Promise(async (resolve, reject) => {
-      (await this.createStream(fileName)).pipe(
+      csvStream.pipe(
         parse({
           delimiter: ',',
           from_line: 1,
@@ -66,6 +67,10 @@ export class CsvService {
           .on('data', async function (row) {
             const validPhone = phone(row[0]);
             if (validPhone.isValid) {
+              row[0] = validPhone.phoneNumber.slice(
+                1,
+                validPhone.phoneNumber.length,
+              );
               const phonesSize = phones.size;
               phones.add(row[0]);
               const element: CsvInsertDto = {
