@@ -6,7 +6,6 @@ import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import phone from 'phone';
 import { CsvInsertDto } from './csv.dto';
-
 type allFilter = {
   phoneNumber: object;
   listTag: object;
@@ -17,10 +16,11 @@ type optionalFilter = Partial<allFilter>;
 
 @Injectable()
 export class CsvService {
+  public numberOfUploadedData: number = 0;
   constructor(@InjectModel(Csv.name) private readonly csvModel: Model<Csv>) {}
 
   async createStream(fileName) {
-    return await fs.createReadStream(`./csvs/${fileName}`, 'utf8');
+    return fs.createReadStream(`./csvs/${fileName}`, 'utf8');
   }
 
   async saveDataToBD(data: CsvInsertDto[], fileName: string, model: any) {
@@ -41,7 +41,7 @@ export class CsvService {
         );
       }
     }
-    return dublicateInMongo;
+    return { dublicateInMongo: dublicateInMongo, row: data.length };
   }
 
   async readFile(fileName: string) {
@@ -54,50 +54,56 @@ export class CsvService {
     let badCounter = 0;
     const csvStream = await this.createStream(fileName);
     const saver = this.saveDataToBD;
+    const parser = parse({
+      delimiter: ',',
+      from_line: 1,
+      skip_empty_lines: true,
+      skip_records_with_error: true,
+      relax_column_count_less: true,
+      relax_column_count_more: true,
+    });
+    const onData = async (row) => {
+      const validPhone = phone(row[0]);
+      if (validPhone.isValid) {
+        row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
+        const phonesSize = phones.size;
+        phones.add(row[0]);
+        const element: CsvInsertDto = {
+          phoneNumber: row[0],
+          firstName: row[1],
+          lastName: row[2],
+          carrier: row[4] ? row[4] : null,
+          listTag: fileName,
+        };
+        if (phonesSize !== phones.size) {
+          data.push(element);
+          if (data.length === 50000) {
+            this.numberOfUploadedData += 50000;
+            lenghtOfData += data.length;
+            saver(data, fileName, model).then((res) => {
+              dublicateInMongo += res.dublicateInMongo;
+              parser.resume();
+            });
+            parser.pause();
+
+            data = [];
+          }
+        } else {
+          countOfDuplicateInFile += 1;
+        }
+      } else {
+        badCounter += 1;
+      }
+    };
+
+    ////////////////////////////////////////////////////////
+
     const result = await new Promise(async (resolve, reject) => {
       csvStream.pipe(
-        parse({
-          delimiter: ',',
-          from_line: 1,
-          skip_empty_lines: true,
-          skip_records_with_error: true,
-          relax_column_count_less: true,
-          relax_column_count_more: true,
-        })
-          .on('data', async function (row) {
-            const validPhone = phone(row[0]);
-            if (validPhone.isValid) {
-              row[0] = validPhone.phoneNumber.slice(
-                1,
-                validPhone.phoneNumber.length,
-              );
-              const phonesSize = phones.size;
-              phones.add(row[0]);
-              const element: CsvInsertDto = {
-                phoneNumber: row[0],
-                firstName: row[1],
-                lastName: row[2],
-                carrier: row[4] ? row[4] : null,
-                listTag: fileName,
-              };
-              if (phonesSize !== phones.size) {
-                data.push(element);
-                if (data.length === 10000) {
-                  lenghtOfData += data.length;
-                  const duplicates = saver(data, fileName, model);
-
-                  data = [];
-                }
-              } else {
-                countOfDuplicateInFile += 1;
-              }
-            } else {
-              badCounter += 1;
-            }
-          })
+        parser
+          .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
-
             try {
               lenghtOfData += data.length;
 

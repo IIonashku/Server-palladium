@@ -18,6 +18,7 @@ export class Csv {
     unique: true,
   })
   phoneNumber: string;
+
   @ApiProperty()
   @Prop({ required: false })
   firstName: string;

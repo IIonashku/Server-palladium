@@ -10,7 +10,6 @@ dotenv.config();
   imports: [
     MongooseModule.forRoot(
       `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}${process.env.DATABASE}`,
-      { dbName: 'test' },
     ),
     UserModule,
     AuthModule,

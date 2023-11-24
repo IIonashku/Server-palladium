@@ -14,7 +14,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CsvService } from './csv.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from './api-file.fields.decorator';
-
+import { Public } from 'src/auth/public.declaration';
+let readingStatus: string = 'Not reading';
+let sizeOfFile: number = 0;
 @ApiTags('CSV controller')
 @UseGuards(AuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -25,6 +27,17 @@ export class CsvController {
   @Post('/count/')
   async getDataLenght(@Body() filters?: any) {
     return await this.csvService.getDataLenght(filters);
+  }
+
+  @Public()
+  @Get('check/reading')
+  isReading() {
+    const data = this.csvService.numberOfUploadedData;
+    return {
+      status: readingStatus,
+      uploadedData: data,
+      fileSize: sizeOfFile,
+    };
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
@@ -61,10 +74,12 @@ export class CsvController {
       throw new BadRequestException('No file founded(file expected)');
     }
     for (let i = 0; i < files.length; i += 1) {
+      sizeOfFile += files[i].size;
       if (files[i].mimetype !== 'text/csv') {
         throw new UnsupportedMediaTypeException('Csv file only');
       }
     }
+    readingStatus = 'Reading';
     try {
       let counter = 0;
       const res = new Promise((resolve, reject) => {
@@ -76,6 +91,8 @@ export class CsvController {
               result.push([await innerResult, file.filename]);
               counter += 1;
               if (counter === files.length) {
+                readingStatus = 'Done';
+                sizeOfFile = 1;
                 resolve(result);
               }
             })
@@ -85,8 +102,12 @@ export class CsvController {
         });
       });
       return { result: await res };
-    } catch {
+    } catch (e) {
+      console.log(e);
+      readingStatus = 'ERROR';
       throw new InternalServerErrorException();
+    } finally {
+      sizeOfFile = 1;
     }
   }
 }
