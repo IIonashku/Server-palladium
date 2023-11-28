@@ -5,7 +5,7 @@ import {
   UserLoginDto,
   UserUpdateTokenDto,
 } from 'src/user/user.dto';
-import { User } from 'src/user/user.entity';
+import { User } from 'src/user/user.schema';
 import { UserService } from 'src/user/user.sevice';
 import * as bcrypt from 'bcryptjs';
 

@@ -5,7 +5,7 @@ import {
   Injectable,
   Scope,
 } from '@nestjs/common';
-import { User } from './user.entity';
+import { User } from './user.schema';
 import { UserCreateDto, UserLoginDto, UserUpdateTokenDto } from './user.dto';
 import * as bcrypt from 'bcryptjs';
 import { REQUEST } from '@nestjs/core';

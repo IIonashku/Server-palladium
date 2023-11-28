@@ -26,7 +26,7 @@ import { Public } from './public.declaration';
 import { AuthGuard } from './auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import * as dotenv from 'dotenv';
-import { User } from 'src/user/user.entity';
+import { User } from 'src/user/user.schema';
 import { RefreshTokenStrategy } from './strategies/refreshToken.strategy';
 import { Request } from 'express';
 dotenv.config();
