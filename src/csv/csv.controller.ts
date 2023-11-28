@@ -16,7 +16,6 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from './api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
 let readingStatus: string = 'Not reading';
-let sizeOfFile: number = 0;
 @ApiTags('CSV controller')
 @UseGuards(AuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -67,10 +66,11 @@ export class CsvController {
   @Get('check/reading')
   isReading() {
     const data = this.csvService.numberOfUploadedData;
+    const lines = this.csvService.numberOfData;
     return {
       status: readingStatus,
       uploadedData: data,
-      fileSize: sizeOfFile,
+      lines: lines,
     };
   }
 
@@ -93,7 +93,6 @@ export class CsvController {
       throw new BadRequestException('No file founded(file expected)');
     }
     for (let i = 0; i < files.length; i += 1) {
-      sizeOfFile += files[i].size;
       if (files[i].mimetype !== 'text/csv') {
         throw new UnsupportedMediaTypeException('Csv file only');
       }
@@ -126,7 +125,7 @@ export class CsvController {
               counter += 1;
               if (counter === files.length) {
                 readingStatus = 'Uploaded';
-                sizeOfFile = 1;
+                this.csvService.numberOfData = 0;
                 this.csvService.numberOfUploadedData = 0;
                 resolve(result);
               }
@@ -142,7 +141,7 @@ export class CsvController {
       readingStatus = 'ERROR';
       throw new InternalServerErrorException();
     } finally {
-      sizeOfFile = 1;
+      this.csvService.numberOfData = 0;
     }
   }
 
@@ -154,7 +153,6 @@ export class CsvController {
       throw new BadRequestException('No file founded(file expected)');
     }
     for (let i = 0; i < files.length; i += 1) {
-      sizeOfFile += files[i].size;
       if (files[i].mimetype !== 'text/csv') {
         throw new UnsupportedMediaTypeException('Csv file only');
       }
@@ -183,7 +181,7 @@ export class CsvController {
               counter += 1;
               if (counter === files.length) {
                 readingStatus = 'Uploaded';
-                sizeOfFile = 1;
+                this.csvService.numberOfData = 0;
                 this.csvService.numberOfUploadedData = 0;
                 resolve(result);
               }
@@ -199,7 +197,7 @@ export class CsvController {
       readingStatus = 'ERROR';
       throw new InternalServerErrorException();
     } finally {
-      sizeOfFile = 1;
+      this.csvService.numberOfData = 0;
     }
   }
 }

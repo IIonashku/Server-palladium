@@ -18,6 +18,7 @@ type optionalFilter = Partial<allFilter>;
 @Injectable()
 export class CsvService {
   public numberOfUploadedData: number = 0;
+  public numberOfData: number = 0;
   constructor(
     @InjectModel(Csv.name) private readonly csvModel: Model<Csv>,
     @InjectModel(Analisys.name) private readonly analisysModel: Model<Analisys>,
@@ -52,32 +53,8 @@ export class CsvService {
     return { duplicateInMongo: duplicateInMongo, row: data.length };
   }
 
-  async updateDataToBD(data: CsvUpdateDto[], model: Model<Csv>) {
-    const dataLenght = data.length;
-    let updatedData: number = 0;
-    try {
-      const updateResult = new Promise(async (resolve) => {
-        for (let i = 0; i < dataLenght; i++) {
-          console.log(updatedData);
-          await model.findOneAndUpdate(
-            { phoneNumber: data[i].phoneNumber },
-            data[i],
-            { upsert: true },
-          );
-          updatedData++;
-        }
-        if (updatedData === dataLenght) {
-          resolve(updatedData);
-        }
-      });
-      return updateResult;
-    } catch (e) {
-      console.log(e);
-      throw new InternalServerErrorException(e);
-    }
-  }
-
   async readFile(fileName: string): Promise<any> {
+    this.getCountOfLine(fileName);
     let data: CsvInsertDto[] = [];
     let lenghtOfData = 0;
     const phones = new Set();
@@ -157,11 +134,40 @@ export class CsvService {
 
   //////////////////////////////////////////////////////
 
+  async updateDataToBD(chunk: CsvUpdateDto[], model: Model<Csv>) {
+    const bulkOps = [];
+    try {
+      chunk.forEach((data) => {
+        const filter = { phoneNumber: data.phoneNumber };
+        const update = {
+          $set: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+          },
+        };
+        bulkOps.push({
+          updateOne: {
+            filter,
+            update,
+            $upset: true,
+          },
+        });
+      });
+      const result = await model.bulkWrite(bulkOps);
+      return result.modifiedCount;
+    } catch (e) {
+      console.log(e);
+      throw new InternalServerErrorException(e);
+    }
+  }
+
   async updateData(fileName: string): Promise<any> {
+    this.getCountOfLine(fileName);
+    const updater = this.updateDataToBD;
     let lenghtOfData = 0;
     const model = this.csvModel;
+    let data: CsvUpdateDto[] = [];
     let badCounter = 0;
-    let lastPromise;
     const csvStream = await this.createStream(fileName);
     const parser = parse({
       delimiter: ',',
@@ -180,17 +186,16 @@ export class CsvService {
           firstName: row[1],
           lastName: row[2],
         };
-        lastPromise = model
-          .findOneAndUpdate({ phoneNumber: element.phoneNumber }, element, {
-            upsert: true,
-          })
-          .then(() => {
+        data.push(element);
+        if (data.length >= 5000) {
+          this.numberOfUploadedData += data.length;
+          lenghtOfData += data.length;
+          updater(data, model).then(() => {
             parser.resume();
-            lenghtOfData++;
           });
-        if (lenghtOfData >= 4) {
-          this.numberOfUploadedData = lenghtOfData;
           parser.pause();
+
+          data = [];
         }
       } else {
         badCounter += 1;
@@ -205,8 +210,10 @@ export class CsvService {
           .on('data', onData)
           .on('end', async function () {
             setTimeout(async () => {
-              await lastPromise;
               console.log('Data has been readed');
+              this.numberOfUploadedData += data.length;
+              lenghtOfData += data.length;
+              await updater(data, model);
               resolve({
                 badDataCounter: badCounter,
                 validDataCounter: lenghtOfData,
@@ -219,6 +226,28 @@ export class CsvService {
       );
     });
     return await result;
+  }
+  async getCountOfLine(fileName: string) {
+    let lineCount = 0;
+    const csvStream = await this.createStream(fileName);
+    const parser = parse({
+      delimiter: ',',
+      from_line: 1,
+      skip_empty_lines: true,
+      skip_records_with_error: true,
+      relax_column_count_less: true,
+      relax_column_count_more: true,
+    });
+    csvStream.pipe(
+      parser
+        .on('data', () => {
+          lineCount++;
+        })
+        .on('end', () => {
+          this.numberOfData += lineCount;
+          console.log(lineCount);
+        }),
+    );
   }
 
   async saveAnalisys(analisys: any) {
