@@ -161,6 +161,7 @@ export class CsvService {
     let lenghtOfData = 0;
     const model = this.csvModel;
     let badCounter = 0;
+    let lastPromise;
     const csvStream = await this.createStream(fileName);
     const parser = parse({
       delimiter: ',',
@@ -179,7 +180,7 @@ export class CsvService {
           firstName: row[1],
           lastName: row[2],
         };
-        model
+        lastPromise = model
           .findOneAndUpdate({ phoneNumber: element.phoneNumber }, element, {
             upsert: true,
           })
@@ -203,7 +204,8 @@ export class CsvService {
         parser
           .on('data', onData)
           .on('end', async function () {
-            setTimeout(() => {
+            setTimeout(async () => {
+              await lastPromise;
               console.log('Data has been readed');
               resolve({
                 badDataCounter: badCounter,
@@ -220,11 +222,9 @@ export class CsvService {
   }
 
   async saveAnalisys(analisys: any) {
-    console.log(analisys);
     try {
       const newAnalisys = new this.analisysModel(analisys);
       await newAnalisys.save();
-      console.log(newAnalisys);
     } catch (e) {
       console.log(e);
       return 'Error';
