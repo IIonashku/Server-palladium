@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import * as mongoose from 'mongoose';
+import { type } from './csv.types';
 export type UserDocument = Csv & Document;
 
 @Schema()
@@ -34,6 +35,10 @@ export class Csv {
   @ApiProperty()
   @Prop({ required: false })
   carrier: string;
+
+  @ApiProperty()
+  @Prop({ type: String, enum: type, required: false })
+  type: type;
 }
 
 export const CsvSchema = SchemaFactory.createForClass(Csv);

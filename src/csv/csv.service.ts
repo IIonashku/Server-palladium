@@ -79,10 +79,11 @@ export class CsvService {
         const phonesSize = phones.size;
         phones.add(row[0]);
         const element: CsvInsertDto = {
-          phoneNumber: row[0],
-          firstName: row[1],
-          lastName: row[2],
-          carrier: row[4] ? row[4] : null,
+          phoneNumber: row[phoneNumberIndex],
+          firstName: row[firstNameIndex],
+          lastName: row[lastNameIndex],
+          type: row[typeIndex] ? row[typeIndex].toLowerCase() : undefined,
+          carrier: row[carrierIndex] ? row[carrierIndex] : null,
           listTag: fileName,
         };
         if (phonesSize !== phones.size) {
@@ -106,10 +107,34 @@ export class CsvService {
       }
     };
     /////////////////////////////////////////////////////////////
+    const phoneNumberIndex = 0;
+    let firstNameIndex = 10;
+    let lastNameIndex = 10;
+    let typeIndex = 10;
+    let carrierIndex = 10;
 
     const result = await new Promise(async (resolve, reject) => {
       csvStream.pipe(
         parser
+          .on('headers', (header) => {
+            console.log(header);
+            for (let i = 0; i < header.length; i++) {
+              switch (header[i].toLowerCase()) {
+                case 'firstname':
+                  firstNameIndex = i;
+                  break;
+                case 'lastname':
+                  lastNameIndex = i;
+                  break;
+                case 'type':
+                  typeIndex = i;
+                  break;
+                case 'carrier':
+                  carrierIndex = i;
+                  break;
+              }
+            }
+          })
           .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
@@ -182,9 +207,9 @@ export class CsvService {
       if (validPhone.isValid) {
         row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
         const element: CsvUpdateDto = {
-          phoneNumber: row[0],
-          firstName: row[1],
-          lastName: row[2],
+          phoneNumber: row[phoneNumberIndex],
+          firstName: row[firstNameIndex],
+          lastName: row[lastNameIndex],
         };
         data.push(element);
         if (data.length >= 5000) {
@@ -204,9 +229,34 @@ export class CsvService {
 
     ////////////////////////////////////////////////////
 
+    const phoneNumberIndex = 0;
+    let firstNameIndex = 10;
+    let lastNameIndex = 10;
+    // let typeIndex = 10;
+    // let carrierIndex = 10;
+
     const result = await new Promise(async (resolve, reject) => {
       csvStream.pipe(
         parser
+          .on('headers', (header) => {
+            console.log(header);
+            for (let i = 0; i < header.length; i++) {
+              switch (header[i].toLowerCase()) {
+                case 'firstname':
+                  firstNameIndex = i;
+                  break;
+                case 'lastname':
+                  lastNameIndex = i;
+                  break;
+                // case 'type':
+                //   typeIndex = i;
+                //   break;
+                // case 'carrier':
+                //   carrierIndex = i;
+                //   break;
+              }
+            }
+          })
           .on('data', onData)
           .on('end', async function () {
             setTimeout(async () => {
@@ -274,7 +324,14 @@ export class CsvService {
     }
     const data = await this.csvModel
       .find(f, {}, { skip: skips, limit: limits })
-      .select(['phoneNumber', 'firstName', 'lastName', 'carrier', 'listTag']);
+      .select([
+        'phoneNumber',
+        'firstName',
+        'lastName',
+        'type',
+        'carrier',
+        'listTag',
+      ]);
     const jsonData = JSON.stringify(data);
     return jsonData;
   }
@@ -299,6 +356,14 @@ export class CsvService {
       {},
       { skip: skips, limit: limits },
     );
+    const jsonData = JSON.stringify(data);
+    return jsonData;
+  }
+
+  async getListTags() {
+    const data = await this.analisysModel
+      .find({}, {}, {})
+      .select(['fileName', 'validDataCounter']);
     const jsonData = JSON.stringify(data);
     return jsonData;
   }

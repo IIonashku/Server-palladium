@@ -62,6 +62,13 @@ export class CsvController {
     return response;
   }
 
+  @ApiOperation({ summary: 'Get all List tag for front-end' })
+  @Post('/analisys/tags')
+  async getListTags() {
+    const response = await this.csvService.getListTags();
+    return response;
+  }
+
   @Public()
   @Get('check/reading')
   isReading() {

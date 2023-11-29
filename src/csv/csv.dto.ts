@@ -5,6 +5,8 @@ export class CsvInsertDto {
 
   lastName: string;
 
+  type: string;
+
   carrier: string;
 
   listTag: string;
