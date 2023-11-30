@@ -402,8 +402,9 @@ export class CsvService {
   }
 
   async deleteDataOfAnalisys(fileName: string) {
+    const reg = RegExp(fileName);
     const deleted = await this.csvModel.deleteMany({
-      listTag: { $elemMatch: { fileName } },
+      listTag: { $elemMatch: { $regex: reg } },
     });
     return deleted.deletedCount;
   }
