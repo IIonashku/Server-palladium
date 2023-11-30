@@ -187,7 +187,6 @@ export class CsvService {
       const result = await model.bulkWrite(bulkOps);
       return result.modifiedCount;
     } catch (e) {
-      console.log(e);
       throw new InternalServerErrorException(e);
     }
   }
@@ -328,8 +327,7 @@ export class CsvService {
       const newAnalisys = new this.analisysModel(analisys);
       await newAnalisys.save();
     } catch (e) {
-      console.log(e);
-      return 'Error';
+      return 'ERROR';
     }
   }
 

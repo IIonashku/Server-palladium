@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   InternalServerErrorException,
   Param,
@@ -92,6 +93,18 @@ export class CsvController {
     }
   }
 
+  @ApiOperation({ summary: 'Read data from existed csv file in server' })
+  @Delete('/analisys/delete/:fileName')
+  async deleteAnalisys(@Param('fileName') fileName: string) {
+    try {
+      const deletedData = await this.csvService.deleteDataOfAnalisys(fileName);
+      const deletedAnalisys = await this.csvService.deleteAnalisys(fileName);
+      return { deletedData: deletedData, deletedAnalisys: deletedAnalisys };
+    } catch (e) {
+      throw new InternalServerErrorException();
+    }
+  }
+
   @Post('upload')
   @ApiCsvFiles('files', true, 10)
   @ApiOperation({ summary: 'upload file' })
@@ -113,9 +126,8 @@ export class CsvController {
           const fileResult = this.csvService.readFile(file.filename);
           fileResult
             .then(async (innerResult) => {
-              result.push([await innerResult, file.filename]);
               try {
-                await this.csvService.saveAnalisys({
+                const analis = await this.csvService.saveAnalisys({
                   fileName: file.filename,
                   badDataCounter: Number(innerResult.badDataCounter),
                   validDataCounter: Number(innerResult.validDataCounter),
@@ -126,6 +138,12 @@ export class CsvController {
                     ? Number(innerResult.duplicateInMongo)
                     : 0,
                 });
+                if (analis === 'ERROR')
+                  result.push({
+                    error: 'Error',
+                    message: `file: ${file.filename} is already exist`,
+                  });
+                else result.push([await innerResult, file.filename]);
               } catch {
                 throw new BadRequestException();
               }
@@ -173,15 +191,24 @@ export class CsvController {
           const fileResult = this.csvService.updateData(file.filename);
           fileResult
             .then(async (innerResult) => {
-              result.push([await innerResult, file.filename]);
               try {
-                await this.csvService.saveAnalisys({
+                const analis = await this.csvService.saveAnalisys({
                   fileName: file.filename + '.update',
                   badDataCounter: innerResult.badDataCounter,
                   validDataCounter: innerResult.validDataCounter,
-                  duplicateInFile: innerResult.duplicateInFile,
-                  duplicateInMongo: innerResult.duplicateInMongo,
+                  duplicateInFile: innerResult.duplicateInFile
+                    ? Number(innerResult.duplicateInFile)
+                    : 0,
+                  duplicateInMongo: innerResult.duplicateInMongo
+                    ? Number(innerResult.duplicateInMongo)
+                    : 0,
                 });
+                if (analis === 'ERROR')
+                  result.push({
+                    error: 'Error',
+                    message: `file: ${file.filename} is already exist`,
+                  });
+                else result.push([await innerResult, file.filename]);
               } catch {
                 throw new BadRequestException();
               }
