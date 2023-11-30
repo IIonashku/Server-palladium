@@ -173,14 +173,14 @@ export class CsvController {
           const fileResult = this.csvService.updateData(file.filename);
           fileResult
             .then(async (innerResult) => {
-              result.push([await innerResult, file.filename + '.update']);
+              result.push([await innerResult, file.filename]);
               try {
                 await this.csvService.saveAnalisys({
                   fileName: file.filename + '.update',
                   badDataCounter: innerResult.badDataCounter,
                   validDataCounter: innerResult.validDataCounter,
-                  duplicateInFile: 0,
-                  duplicateInMongo: 0,
+                  duplicateInFile: innerResult.duplicateInFile,
+                  duplicateInMongo: innerResult.duplicateInMongo,
                 });
               } catch {
                 throw new BadRequestException();

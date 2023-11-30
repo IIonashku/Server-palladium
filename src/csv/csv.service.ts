@@ -76,7 +76,6 @@ export class CsvService {
     const onData = async (row) => {
       const validPhone = phone(row[0]);
       if (first) {
-        console.log(row);
         first = false;
         for (let i = 0; i < row.length; i++) {
           switch (row[i].toLowerCase()) {
@@ -161,7 +160,11 @@ export class CsvService {
 
   //////////////////////////////////////////////////////
 
-  async updateDataToBD(chunk: CsvUpdateDto[], model: Model<Csv>) {
+  async updateDataToBD(
+    chunk: CsvUpdateDto[],
+    model: Model<Csv>,
+    fileName: string,
+  ) {
     const bulkOps = [];
     try {
       chunk.forEach((data) => {
@@ -171,12 +174,13 @@ export class CsvService {
             firstName: data.firstName,
             lastName: data.lastName,
           },
+          $push: { listTag: fileName },
         };
         bulkOps.push({
           updateOne: {
             filter,
             update,
-            $upset: true,
+            upsert: true,
           },
         });
       });
@@ -190,11 +194,18 @@ export class CsvService {
 
   async updateData(fileName: string): Promise<any> {
     this.getCountOfLine(fileName);
+
     const updater = this.updateDataToBD;
+
+    const phones = new Set();
     let lenghtOfData = 0;
-    const model = this.csvModel;
+    let duplicateInFile = 0;
+    let duplicateInMongo = 0;
     let data: CsvUpdateDto[] = [];
     let badCounter = 0;
+
+    const model = this.csvModel;
+
     const csvStream = await this.createStream(fileName);
     const parser = parse({
       delimiter: ',',
@@ -207,7 +218,6 @@ export class CsvService {
     const onData = async (row) => {
       if (first) {
         first = false;
-        console.log(row);
         for (let i = 0; i < row.length; i++) {
           switch (row[i].toLowerCase()) {
             case 'firstname':
@@ -228,16 +238,23 @@ export class CsvService {
       const validPhone = phone(row[0]);
       if (validPhone.isValid) {
         row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
+        const phonesSize = phones.size;
+        phones.add(row[0]);
+
         const element: CsvUpdateDto = {
           phoneNumber: row[phoneNumberIndex],
           firstName: row[firstNameIndex],
           lastName: row[lastNameIndex],
         };
-        data.push(element);
+
+        if (phones.size > phonesSize) data.push(element);
+        else duplicateInFile++;
+
         if (data.length >= 5000) {
           this.numberOfUploadedData += data.length;
           lenghtOfData += data.length;
-          updater(data, model).then(() => {
+          updater(data, model, fileName).then((result) => {
+            duplicateInMongo += result;
             parser.resume();
           });
           parser.pause();
@@ -267,8 +284,11 @@ export class CsvService {
               console.log('Data has been readed');
               this.numberOfUploadedData += data.length;
               lenghtOfData += data.length;
-              await updater(data, model);
+              const result = await updater(data, model, fileName);
+              duplicateInMongo += result;
               resolve({
+                duplicateInFile: duplicateInFile,
+                duplicateInMongo: duplicateInMongo,
                 badDataCounter: badCounter,
                 validDataCounter: lenghtOfData,
               });
@@ -299,7 +319,6 @@ export class CsvService {
         })
         .on('end', () => {
           this.numberOfData += lineCount;
-          console.log(lineCount);
         }),
     );
   }
@@ -375,5 +394,19 @@ export class CsvService {
   async getAnalisysDataLenght() {
     const count = await this.analisysModel.count({});
     return count;
+  }
+
+  async deleteAnalisys(fileName: string) {
+    const deleted = await this.analisysModel.findOneAndDelete({
+      fileName: fileName,
+    });
+    return deleted;
+  }
+
+  async deleteDataOfAnalisys(fileName: string) {
+    const deleted = await this.csvModel.deleteMany({
+      listTag: { $elemMatch: { fileName } },
+    });
+    return deleted.deletedCount;
   }
 }
