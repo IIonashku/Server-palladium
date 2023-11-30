@@ -64,6 +64,7 @@ export class CsvService {
     let badCounter = 0;
     const csvStream = await this.createStream(fileName);
     const saver = this.saveDataToBD;
+    let first = true;
     const parser = parse({
       delimiter: ',',
       from_line: 1,
@@ -74,6 +75,26 @@ export class CsvService {
     });
     const onData = async (row) => {
       const validPhone = phone(row[0]);
+      if (first) {
+        console.log(row);
+        first = false;
+        for (let i = 0; i < row.length; i++) {
+          switch (row[i].toLowerCase()) {
+            case 'firstname':
+              firstNameIndex = i;
+              break;
+            case 'lastname':
+              lastNameIndex = i;
+              break;
+            case 'type':
+              typeIndex = i;
+              break;
+            case 'carrier':
+              carrierIndex = i;
+              break;
+          }
+        }
+      }
       if (validPhone.isValid) {
         row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
         const phonesSize = phones.size;
@@ -116,25 +137,6 @@ export class CsvService {
     const result = await new Promise(async (resolve, reject) => {
       csvStream.pipe(
         parser
-          .on('headers', (header) => {
-            console.log(header);
-            for (let i = 0; i < header.length; i++) {
-              switch (header[i].toLowerCase()) {
-                case 'firstname':
-                  firstNameIndex = i;
-                  break;
-                case 'lastname':
-                  lastNameIndex = i;
-                  break;
-                case 'type':
-                  typeIndex = i;
-                  break;
-                case 'carrier':
-                  carrierIndex = i;
-                  break;
-              }
-            }
-          })
           .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
@@ -203,6 +205,26 @@ export class CsvService {
       relax_column_count_more: true,
     });
     const onData = async (row) => {
+      if (first) {
+        first = false;
+        console.log(row);
+        for (let i = 0; i < row.length; i++) {
+          switch (row[i].toLowerCase()) {
+            case 'firstname':
+              firstNameIndex = i;
+              break;
+            case 'lastname':
+              lastNameIndex = i;
+              break;
+            // case 'type':
+            //   typeIndex = i;
+            //   break;
+            // case 'carrier':
+            //   carrierIndex = i;
+            //   break;
+          }
+        }
+      }
       const validPhone = phone(row[0]);
       if (validPhone.isValid) {
         row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
@@ -234,29 +256,11 @@ export class CsvService {
     let lastNameIndex = 10;
     // let typeIndex = 10;
     // let carrierIndex = 10;
+    let first = true;
 
     const result = await new Promise(async (resolve, reject) => {
       csvStream.pipe(
         parser
-          .on('headers', (header) => {
-            console.log(header);
-            for (let i = 0; i < header.length; i++) {
-              switch (header[i].toLowerCase()) {
-                case 'firstname':
-                  firstNameIndex = i;
-                  break;
-                case 'lastname':
-                  lastNameIndex = i;
-                  break;
-                // case 'type':
-                //   typeIndex = i;
-                //   break;
-                // case 'carrier':
-                //   carrierIndex = i;
-                //   break;
-              }
-            }
-          })
           .on('data', onData)
           .on('end', async function () {
             setTimeout(async () => {
