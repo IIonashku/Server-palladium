@@ -29,6 +29,10 @@ export class Analisys {
 
   @ApiProperty()
   @Prop({ required: true })
+  duplicateInBase: number;
+
+  @ApiProperty()
+  @Prop({ required: true })
   badDataCounter: number;
 
   @ApiProperty()

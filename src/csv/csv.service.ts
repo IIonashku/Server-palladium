@@ -7,10 +7,12 @@ import { parse } from 'csv-parse';
 import phone from 'phone';
 import { CsvInsertDto, CsvUpdateDto } from './csv.dto';
 import { Analisys } from './csv.analisys.schema';
+import { Basecsv } from './base.csv.schema';
 type allFilter = {
   phoneNumber: object;
   listTag: object;
   carrier: object;
+  inBase: object;
 };
 
 type optionalFilter = Partial<allFilter>;
@@ -22,6 +24,7 @@ export class CsvService {
   constructor(
     @InjectModel(Csv.name) private readonly csvModel: Model<Csv>,
     @InjectModel(Analisys.name) private readonly analisysModel: Model<Analisys>,
+    @InjectModel(Basecsv.name) private readonly baseModel: Model<Basecsv>,
   ) {}
 
   async createStream(fileName) {
@@ -30,12 +33,27 @@ export class CsvService {
 
   async saveDataToBD(
     data: CsvInsertDto[],
+    phones: string[],
     fileName: string,
-    model: Model<Csv>,
+    modelCsv: Model<Csv>,
+    modelBase: Model<Basecsv>,
   ) {
     let duplicateInMongo: number;
+    let duplicateInBase: number;
+
     try {
-      await model.insertMany(data, {
+      const finded = await modelBase.find({ phoneNumber: { $in: phones } });
+      duplicateInBase = finded.length;
+      if (finded.length > 0) {
+        finded.forEach((dataInBase) => {
+          data.forEach((element) => {
+            if (element.phoneNumber === dataInBase.phoneNumber) {
+              element.inBase = true;
+            }
+          });
+        });
+      }
+      await modelCsv.insertMany(data, {
         ordered: false,
       });
     } catch (e) {
@@ -44,26 +62,37 @@ export class CsvService {
           return error.err.op.phoneNumber;
         });
         duplicateInMongo = await csvIds.length;
-        await model.updateMany(
+        await modelCsv.updateMany(
           { phoneNumber: { $in: csvIds } },
           { $push: { listTag: fileName } },
         );
       }
     }
-    return { duplicateInMongo: duplicateInMongo, row: data.length };
+    return {
+      duplicateInMongo: duplicateInMongo,
+      row: data.length,
+      duplicateInBase: duplicateInBase,
+    };
   }
 
   async readFile(fileName: string): Promise<any> {
     this.getCountOfLine(fileName);
+
     let data: CsvInsertDto[] = [];
     let lenghtOfData = 0;
-    const phones = new Set();
+    let uploadingphones = [];
     let countOfDuplicateInFile: number = 0;
     let duplicateInMongo: number = 0;
-    const model = this.csvModel;
     let badCounter = 0;
+    let duplicateInBase = 0;
+
+    const model = this.csvModel;
+    const modelBase = this.baseModel;
+    const phones = new Set();
+
     const csvStream = await this.createStream(fileName);
     const saver = this.saveDataToBD;
+
     let first = true;
     const parser = parse({
       delimiter: ',',
@@ -73,7 +102,7 @@ export class CsvService {
       relax_column_count_less: true,
       relax_column_count_more: true,
     });
-    const onData = async (row) => {
+    const onData = async (row: string[]) => {
       const validPhone = phone(row[0]);
       if (first) {
         first = false;
@@ -104,20 +133,26 @@ export class CsvService {
           lastName: row[lastNameIndex],
           type: row[typeIndex] ? row[typeIndex].toLowerCase() : undefined,
           carrier: row[carrierIndex] ? row[carrierIndex] : null,
+          inBase: false,
           listTag: fileName,
         };
         if (phonesSize !== phones.size) {
           data.push(element);
+          uploadingphones.push(row[phoneNumberIndex]);
           if (data.length === 50000) {
             this.numberOfUploadedData += 50000;
             lenghtOfData += data.length;
-            saver(data, fileName, model).then((res) => {
-              duplicateInMongo += res.duplicateInMongo;
-              parser.resume();
-            });
+            saver(data, uploadingphones, fileName, model, modelBase).then(
+              (res) => {
+                duplicateInMongo += res.duplicateInMongo;
+                duplicateInBase += res.duplicateInBase;
+                parser.resume();
+              },
+            );
             parser.pause();
 
             data = [];
+            uploadingphones = [];
           }
         } else {
           countOfDuplicateInFile += 1;
@@ -139,15 +174,19 @@ export class CsvService {
           .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
-            await saver(data, fileName, model).then((res) => {
-              duplicateInMongo += res.duplicateInMongo;
-            });
+            await saver(data, uploadingphones, fileName, model, modelBase).then(
+              (res) => {
+                duplicateInMongo += res.duplicateInMongo;
+                duplicateInBase += res.duplicateInBase;
+              },
+            );
             lenghtOfData += data.length;
             resolve({
               badDataCounter: badCounter,
               duplicateInFile: countOfDuplicateInFile,
               duplicateInMongo: duplicateInMongo,
               validDataCounter: lenghtOfData,
+              duplicateInBase: duplicateInBase,
             });
           })
           .on('error', function (error) {
@@ -342,6 +381,7 @@ export class CsvService {
         f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
       if (filters.filters.carrier)
         f.carrier = { $regex: RegExp(filters.filters.carrier) };
+      if (filters.filters.inBase) f.inBase = filters.filters.inBase;
     }
     const data = await this.csvModel
       .find(f, {}, { skip: skips, limit: limits })
@@ -352,6 +392,7 @@ export class CsvService {
         'type',
         'carrier',
         'listTag',
+        'inBase',
       ]);
     const jsonData = JSON.stringify(data);
     return jsonData;
@@ -366,6 +407,8 @@ export class CsvService {
         f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
       if (filters.filters.carrier)
         f.carrier = { $regex: RegExp(filters.filters.carrier) };
+      if (filters.filters.inBase != undefined)
+        f.inBase = filters.filters.inBase;
     }
     const count = await this.csvModel.count(f);
     return count;

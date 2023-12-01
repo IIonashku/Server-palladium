@@ -4,11 +4,13 @@ import { CsvService } from './csv.service';
 import { Csv, CsvSchema } from './csv.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Analisys, AnalisysSchema } from './csv.analisys.schema';
+import { Basecsv, BasecsvSchema } from './base.csv.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Csv.name, schema: CsvSchema },
+      { name: Basecsv.name, schema: BasecsvSchema },
       { name: Analisys.name, schema: AnalisysSchema },
     ]),
   ],

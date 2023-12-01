@@ -2,16 +2,16 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import * as mongoose from 'mongoose';
 import { type } from './csv.types';
-export type UserDocument = Csv & Document;
+export type UserDocument = Basecsv & Document;
 
-@Schema()
-export class Csv {
+@Schema({})
+export class Basecsv {
   _id: string;
   @Prop({
     type: mongoose.Schema.ObjectId,
-    ref: Csv.name,
+    ref: Basecsv.name,
   })
-  csv: Csv;
+  basecsv: Basecsv;
 
   @ApiProperty()
   @Prop({
@@ -39,9 +39,6 @@ export class Csv {
   @ApiProperty()
   @Prop({ type: String, enum: type, required: false })
   type: type;
-  @ApiProperty()
-  @Prop({ type: Boolean, required: false })
-  inBase: boolean;
 }
 
-export const CsvSchema = SchemaFactory.createForClass(Csv);
+export const BasecsvSchema = SchemaFactory.createForClass(Basecsv);

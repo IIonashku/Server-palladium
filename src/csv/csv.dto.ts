@@ -10,6 +10,8 @@ export class CsvInsertDto {
   carrier: string;
 
   listTag: string;
+
+  inBase: boolean;
 }
 
 export class CsvUpdateDto {

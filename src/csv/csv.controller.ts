@@ -137,6 +137,7 @@ export class CsvController {
                   duplicateInMongo: innerResult.duplicateInMongo
                     ? Number(innerResult.duplicateInMongo)
                     : 0,
+                  duplicateInBase: innerResult.duplicateInBase,
                 });
                 if (analis === 'ERROR')
                   result.push({
@@ -202,6 +203,7 @@ export class CsvController {
                   duplicateInMongo: innerResult.duplicateInMongo
                     ? Number(innerResult.duplicateInMongo)
                     : 0,
+                  duplicateInBase: 0,
                 });
                 if (analis === 'ERROR')
                   result.push({
