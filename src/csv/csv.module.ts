@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { CsvController } from './csv.controller';
 import { CsvService } from './csv.service';
-import { Csv, CsvSchema } from './csv.schema';
+import { Csv, CsvSchema } from './main/csv.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Analisys, AnalisysSchema } from './csv.analisys.schema';
-import { Basecsv, BasecsvSchema } from './base.csv.schema';
+import { Analisys, AnalisysSchema } from './analisys/csv.analisys.schema';
+import { Basecsv, BasecsvSchema } from './base/base.csv.schema';
 
 @Module({
   imports: [

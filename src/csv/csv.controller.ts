@@ -14,7 +14,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CsvService } from './csv.service';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { ApiCsvFiles } from './api-file.fields.decorator';
+import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
 let readingStatus: string = 'Not reading';
 @ApiTags('CSV controller')

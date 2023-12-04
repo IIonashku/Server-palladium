@@ -1,13 +1,14 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Csv } from './csv.schema';
+import { Csv } from './main/csv.schema';
 import { Model } from 'mongoose';
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import phone from 'phone';
-import { CsvInsertDto, CsvUpdateDto } from './csv.dto';
-import { Analisys } from './csv.analisys.schema';
-import { Basecsv } from './base.csv.schema';
+import { CsvInsertDto, CsvUpdateDto } from './main/csv.dto';
+import { Analisys } from './analisys/csv.analisys.schema';
+import { Basecsv } from './base/base.csv.schema';
+
 type allFilter = {
   phoneNumber: object;
   listTag: object;
@@ -42,13 +43,17 @@ export class CsvService {
     let duplicateInBase: number;
 
     try {
-      const finded = await modelBase.find({ phoneNumber: { $in: phones } });
+      const finded = await modelBase
+        .find({ phoneNumber: { $in: phones } })
+        .select(['type', 'carrier', 'phoneNumber']);
       duplicateInBase = finded.length;
       if (finded.length > 0) {
         finded.forEach((dataInBase) => {
           data.forEach((element) => {
             if (element.phoneNumber === dataInBase.phoneNumber) {
               element.inBase = true;
+              element.type = dataInBase.type;
+              element.carrier = dataInBase.carrier;
             }
           });
         });

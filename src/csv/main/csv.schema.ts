@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import * as mongoose from 'mongoose';
-import { type } from './csv.types';
+import { type } from '../../types/csv.types';
 export type UserDocument = Csv & Document;
 
 @Schema()
