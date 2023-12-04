@@ -41,23 +41,31 @@ export class CsvService {
   ) {
     let duplicateInMongo: number;
     let duplicateInBase: number;
+    const numberInBase = [];
 
     try {
-      const finded = await modelBase
-        .find({ phoneNumber: { $in: phones } })
-        .select(['type', 'carrier', 'phoneNumber']);
+      const finded: any = await modelBase.find(
+        { phoneNumber: { $in: phones } },
+        { _id: false, __v: false, lastName: false, firstName: false },
+      );
       duplicateInBase = finded.length;
-      if (finded.length > 0) {
-        finded.forEach((dataInBase) => {
-          data.forEach((element) => {
-            if (element.phoneNumber === dataInBase.phoneNumber) {
-              element.inBase = true;
-              element.type = dataInBase.type;
-              element.carrier = dataInBase.carrier;
-            }
-          });
-        });
+      for (let i = 0; i < finded.length; i++) {
+        finded[i].listTag = [];
+        numberInBase.push(finded[i].phoneNumber);
       }
+      await modelCsv.insertMany(finded, { ordered: false });
+      await modelCsv.updateMany(
+        { phoneNumber: { $in: numberInBase } },
+        {
+          $set: {
+            inBase: true,
+          },
+        },
+      );
+    } catch (e) {
+      console.log('Was duplicate, ignore it');
+    }
+    try {
       await modelCsv.insertMany(data, {
         ordered: false,
       });
@@ -73,6 +81,7 @@ export class CsvService {
         );
       }
     }
+
     return {
       duplicateInMongo: duplicateInMongo,
       row: data.length,
