@@ -44,6 +44,23 @@ export class CsvService {
     const numberInBase = [];
 
     try {
+      await modelCsv.insertMany(data, {
+        ordered: false,
+      });
+    } catch (e) {
+      if (e.code === 11000) {
+        const csvIds = await e.result.result.writeErrors.map((error) => {
+          return error.err.op.phoneNumber;
+        });
+        duplicateInMongo = await csvIds.length;
+        await modelCsv.updateMany(
+          { phoneNumber: { $in: csvIds } },
+          { $push: { listTag: fileName } },
+        );
+      }
+    }
+
+    try {
       const finded: any = await modelBase.find(
         { phoneNumber: { $in: phones } },
         { _id: false, __v: false },
@@ -64,22 +81,6 @@ export class CsvService {
       );
     } catch (e) {
       console.log('Was duplicate, ignore it');
-    }
-    try {
-      await modelCsv.insertMany(data, {
-        ordered: false,
-      });
-    } catch (e) {
-      if (e.code === 11000) {
-        const csvIds = await e.result.result.writeErrors.map((error) => {
-          return error.err.op.phoneNumber;
-        });
-        duplicateInMongo = await csvIds.length;
-        await modelCsv.updateMany(
-          { phoneNumber: { $in: csvIds } },
-          { $push: { listTag: fileName } },
-        );
-      }
     }
 
     return {
