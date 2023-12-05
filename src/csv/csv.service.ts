@@ -66,7 +66,6 @@ export class CsvService {
         { _id: false, __v: false },
       );
       const bulkOps = [];
-      console.log(finded);
       duplicateInBase = finded.length;
       for (let i = 0; i < finded.length; i++) {
         const filter = { phoneNumber: finded[i].phoneNumber };
