@@ -65,21 +65,33 @@ export class CsvService {
         { phoneNumber: { $in: phones } },
         { _id: false, __v: false },
       );
+      const bulkOps = [];
+      console.log(finded);
       duplicateInBase = finded.length;
       for (let i = 0; i < finded.length; i++) {
-        finded[i].listTag = [];
-        numberInBase.push(finded[i].phoneNumber);
-      }
-      await modelCsv.insertMany(finded, { ordered: false });
-      await modelCsv.updateMany(
-        { phoneNumber: { $in: numberInBase } },
-        {
+        const filter = { phoneNumber: finded[i].phoneNumber };
+        const update = {
           $set: {
+            firstName: finded[i].firstName,
+            lastName: finded[i].lastName,
+            type: finded[i].type,
+            carrier: finded[i].carrier,
             inBase: true,
           },
-        },
-      );
+          $push: { listTag: fileName },
+        };
+        bulkOps.push({
+          updateOne: {
+            filter,
+            update,
+            upsert: true,
+          },
+        });
+        finded[i].listTag = [];
+      }
+      const res = await modelCsv.bulkWrite(bulkOps);
     } catch (e) {
+      console.log(e);
       console.log('Was duplicate, ignore it');
     }
 
