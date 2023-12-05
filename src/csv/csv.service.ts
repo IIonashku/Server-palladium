@@ -12,8 +12,9 @@ import { Basecsv } from './base/base.csv.schema';
 type allFilter = {
   phoneNumber: object;
   listTag: object;
-  carrier: object;
-  inBase: object;
+  carrier: object | null;
+  type: null;
+  inBase: object | undefined;
 };
 
 type optionalFilter = Partial<allFilter>;
@@ -41,7 +42,6 @@ export class CsvService {
   ) {
     let duplicateInMongo: number;
     let duplicateInBase: number;
-    const numberInBase = [];
 
     try {
       await modelCsv.insertMany(data, {
@@ -78,7 +78,6 @@ export class CsvService {
             carrier: finded[i].carrier,
             inBase: true,
           },
-          $push: { listTag: fileName },
         };
         bulkOps.push({
           updateOne: {
@@ -89,7 +88,7 @@ export class CsvService {
         });
         finded[i].listTag = [];
       }
-      const res = await modelCsv.bulkWrite(bulkOps);
+      await modelCsv.bulkWrite(bulkOps);
     } catch (e) {
       console.log(e);
       console.log('Was duplicate, ignore it');
@@ -406,8 +405,15 @@ export class CsvService {
         f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
       if (filters.filters.listTag)
         f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
-      if (filters.filters.carrier)
+      if (
+        filters.filters.carrier &&
+        filters.filters.carrier !== 'nullTypeAndCarrier'
+      )
         f.carrier = { $regex: RegExp(filters.filters.carrier) };
+      else if (filters.filters.carrier === 'nullTypeAndCarrier') {
+        f.carrier = null;
+        f.type = null;
+      }
       if (filters.filters.inBase != undefined)
         f.inBase = filters.filters.inBase;
     }
@@ -433,8 +439,15 @@ export class CsvService {
         f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
       if (filters.filters.listTag)
         f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
-      if (filters.filters.carrier)
+      if (
+        filters.filters.carrier &&
+        filters.filters.carrier !== 'nullTypeAndCarrier'
+      )
         f.carrier = { $regex: RegExp(filters.filters.carrier) };
+      else if (filters.filters.carrier === 'nullTypeAndCarrier') {
+        f.carrier = null;
+        f.type = null;
+      }
       if (filters.filters.inBase != undefined)
         f.inBase = filters.filters.inBase;
     }
