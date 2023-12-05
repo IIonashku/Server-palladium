@@ -46,7 +46,7 @@ export class CsvService {
     try {
       const finded: any = await modelBase.find(
         { phoneNumber: { $in: phones } },
-        { _id: false, __v: false, lastName: false, firstName: false },
+        { _id: false, __v: false },
       );
       duplicateInBase = finded.length;
       for (let i = 0; i < finded.length; i++) {
@@ -395,7 +395,8 @@ export class CsvService {
         f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
       if (filters.filters.carrier)
         f.carrier = { $regex: RegExp(filters.filters.carrier) };
-      if (filters.filters.inBase) f.inBase = filters.filters.inBase;
+      if (filters.filters.inBase != undefined)
+        f.inBase = filters.filters.inBase;
     }
     const data = await this.csvModel
       .find(f, {}, { skip: skips, limit: limits })
