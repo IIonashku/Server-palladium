@@ -11,7 +11,12 @@ import {
   UploadedFiles,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CsvService } from './csv.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
@@ -234,6 +239,18 @@ export class CsvController {
       throw new InternalServerErrorException();
     } finally {
       this.csvService.numberOfData = 0;
+    }
+  }
+
+  @ApiOperation({ summary: 'check phone number`s carrier and type' })
+  @ApiParam({ name: 'phoneNumber' })
+  @Get('/check/carrier/:phoneNumber')
+  async checkCarrier(@Param('phoneNumber') phoneNumber: any) {
+    try {
+      const result = await this.csvService.detectCarrier(phoneNumber);
+      return result;
+    } catch (e) {
+      console.log(e);
     }
   }
 }

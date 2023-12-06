@@ -5,6 +5,11 @@ import { Csv, CsvSchema } from './main/csv.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Analisys, AnalisysSchema } from './analisys/csv.analisys.schema';
 import { Basecsv, BasecsvSchema } from './base/base.csv.schema';
+import {
+  ApiResult,
+  ApiResultSchema,
+} from './carrier api/carrier.api.result.schema';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -12,7 +17,9 @@ import { Basecsv, BasecsvSchema } from './base/base.csv.schema';
       { name: Csv.name, schema: CsvSchema },
       { name: Basecsv.name, schema: BasecsvSchema },
       { name: Analisys.name, schema: AnalisysSchema },
+      { name: ApiResult.name, schema: ApiResultSchema },
     ]),
+    HttpModule,
   ],
   controllers: [CsvController],
   providers: [CsvService],

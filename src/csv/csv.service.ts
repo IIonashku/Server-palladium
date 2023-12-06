@@ -8,6 +8,8 @@ import phone from 'phone';
 import { CsvInsertDto, CsvUpdateDto } from './main/csv.dto';
 import { Analisys } from './analisys/csv.analisys.schema';
 import { Basecsv } from './base/base.csv.schema';
+import { ApiResult } from './carrier api/carrier.api.result.schema';
+import { HttpService } from '@nestjs/axios';
 
 type allFilter = {
   phoneNumber: object;
@@ -27,6 +29,9 @@ export class CsvService {
     @InjectModel(Csv.name) private readonly csvModel: Model<Csv>,
     @InjectModel(Analisys.name) private readonly analisysModel: Model<Analisys>,
     @InjectModel(Basecsv.name) private readonly baseModel: Model<Basecsv>,
+    @InjectModel(ApiResult.name)
+    private readonly apiResultModel: Model<ApiResult>,
+    private readonly httpService: HttpService,
   ) {}
 
   async createStream(fileName) {
@@ -490,5 +495,26 @@ export class CsvService {
       listTag: { $elemMatch: { $regex: reg } },
     });
     return deleted.deletedCount;
+  }
+
+  async detectCarrier(phoneNumber: string) {
+    const validPhone = phone(phoneNumber);
+    if (validPhone.isValid) {
+      phoneNumber = validPhone.phoneNumber.slice(1);
+      let forReturn: any;
+      const result = this.httpService.axiosRef
+        .get(
+          `https://i.textyou.online/campaign/nl/v1/enum/lookup?product=MNP&phone_number=${phoneNumber}`,
+          {
+            headers: {
+              Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
+            },
+          },
+        )
+        .then((res) => {
+          forReturn = res.data;
+        });
+      return forReturn;
+    }
   }
 }
