@@ -504,7 +504,7 @@ export class CsvService {
       let forReturn: any;
       const result = this.httpService.axiosRef
         .get(
-          `https://i.textyou.online/campaign/nl/v1/enum/lookup?product=MNP&phone_number=${phoneNumber}`,
+          `https://i.textyou.online/campaign/nl/v1/enum/lookup/MNP/${phoneNumber}`,
           {
             headers: {
               Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
@@ -513,6 +513,9 @@ export class CsvService {
         )
         .then((res) => {
           forReturn = res.data;
+        })
+        .catch((err) => {
+          console.log(err);
         });
       return forReturn;
     }
