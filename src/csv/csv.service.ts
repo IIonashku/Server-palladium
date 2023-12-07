@@ -545,6 +545,18 @@ export class CsvService {
     }
   }
   async detectArrayCarrier(phoneNumbers: string[]) {
+    const duplicates = await this.apiResultModel.find({
+      phoneNumber: { $in: phoneNumbers },
+    });
+    if (duplicates.length > 0) {
+      for (let i = 0; i < duplicates.length; i++) {
+        for (let k = 0; k < phoneNumbers.length; k++) {
+          if (duplicates[i].phoneNumber === phoneNumbers[k]) {
+            phoneNumbers = phoneNumbers.splice(k, 1);
+          }
+        }
+      }
+    }
     for (let i = 0; i < phoneNumbers.length; i++) {
       const validPhone = phone(phoneNumbers[i]);
       if (validPhone.isValid) {
@@ -553,57 +565,55 @@ export class CsvService {
         phoneNumbers.splice(i, 1);
       }
     }
-    //let end: any = false;
     const forReturn: any = { unknown: 0, landline: 0, mobile: 0 };
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
 
-      await this.httpService.axiosRef
-        .post(
-          'https://i.textyou.online/campaign/nl/v1/enum/lookup',
-          { product: 'Mobius MNP', phone_numbers: phoneNumbers },
-          {
-            headers: {
-              Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
-              'Content-Type': 'application/json',
+      const resultProcess = new Promise(async (resolve, reject) => {
+        await this.httpService.axiosRef
+          .post(
+            'https://i.textyou.online/campaign/nl/v1/enum/lookup',
+            { product: 'Mobius MNP', phone_numbers: phoneNumbers },
+            {
+              headers: {
+                Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
+                'Content-Type': 'application/json',
+              },
             },
-          },
-        )
-        .then(async (res) => {
-          console.log(res.data);
-          for (let i = 0; i < res.data.length; i++) {
-            console.log(res.data[i], 111);
-            let type = res.data[i].number_type;
-            if (type === 0) {
-              forReturn.unknown++;
-              type = null;
-            } else if (type === 2) {
-              forReturn.landline++;
-              type = 'landline';
-            } else if (type === 3) {
-              forReturn.mobile++;
-              type = 'mobile';
+          )
+          .then(async (res) => {
+            for (let i = 0; i < res.data.length; i++) {
+              let type = res.data[i].number_type;
+              if (type === 0) {
+                forReturn.unknown++;
+                type = null;
+              } else if (type === 2) {
+                forReturn.landline++;
+                type = 'landline';
+              } else if (type === 3) {
+                forReturn.mobile++;
+                type = 'mobile';
+              }
+              const carrier = res.data[i].operator_name;
+
+              const filter = { phoneNumber: res.data[i].phone_number };
+
+              const update = { $set: { carrier: carrier, type: type } };
+
+              bulkOps.push({ updateOne: { filter, update, upsert: true } });
             }
-            const carrier = res.data[i].operator_name;
-            console.log(res.data[i].phone_number, 22, carrier, 333, type);
-
-            const filter = { phoneNumber: res.data[i].phone_number };
-
-            const update = { $set: { carrier: carrier, type: type } };
-
-            bulkOps.push({ updateOne: { filter, update, upsert: true } });
-            console.log(bulkOps);
-          }
-          await this.apiResultModel.bulkWrite(bulkOps);
-          await this.baseModel.bulkWrite(bulkOps);
-          await this.csvModel.bulkWrite(bulkOps);
-          return forReturn;
-        })
-        .catch((err) => {
-          console.log(err);
-          throw new HttpException(err, 500);
-        });
+            await this.apiResultModel.bulkWrite(bulkOps);
+            await this.baseModel.bulkWrite(bulkOps);
+            await this.csvModel.bulkWrite(bulkOps);
+            resolve(forReturn);
+          })
+          .catch((err) => {
+            throw new HttpException(err, 500);
+            reject(err);
+          });
+      });
+      await resultProcess;
+      return forReturn;
     }
-    return forReturn;
   }
 }
