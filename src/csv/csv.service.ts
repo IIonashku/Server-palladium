@@ -591,7 +591,7 @@ export class CsvService {
 
             const update = { $set: { carrier: carrier, type: type } };
 
-            bulkOps.push(filter, update, { upsert: true });
+            bulkOps.push({ updateOne: { filter, update, upsert: true } });
             console.log(bulkOps);
           }
           await this.apiResultModel.bulkWrite(bulkOps);
