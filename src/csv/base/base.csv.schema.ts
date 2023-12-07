@@ -29,10 +29,6 @@ export class Basecsv {
   lastName: string;
 
   @ApiProperty()
-  @Prop({ required: true })
-  listTag: string[];
-
-  @ApiProperty()
   @Prop({ required: false })
   carrier: string;
 

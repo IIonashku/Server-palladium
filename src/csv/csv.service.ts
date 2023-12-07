@@ -598,6 +598,7 @@ export class CsvService {
           return forReturn;
         })
         .catch((err) => {
+          console.log(err);
           throw new HttpException(err, 500);
         });
     }
