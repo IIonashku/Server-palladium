@@ -264,7 +264,6 @@ export class CsvController {
   @ApiBody({ type: NumberString })
   @Post('/check/carrier/')
   async checkArrayCarrier(@Body('phoneNumber') phoneNumber: any[]) {
-    console.log(phoneNumber);
     try {
       const result = await this.csvService.detectArrayCarrier(phoneNumber);
       return result;
