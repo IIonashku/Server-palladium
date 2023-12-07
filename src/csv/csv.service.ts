@@ -572,6 +572,7 @@ export class CsvService {
         .then(async (res) => {
           console.log(res.data);
           for (let i = 0; i < res.data.length; i++) {
+            console.log(res.data[i], 111);
             let type = res.data[i].number_type;
             if (type === 0) {
               forReturn.unknown++;
