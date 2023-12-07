@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Csv } from './main/csv.schema';
 import { Model } from 'mongoose';
@@ -502,9 +506,9 @@ export class CsvService {
     if (validPhone.isValid) {
       phoneNumber = validPhone.phoneNumber.slice(1);
       let forReturn: any;
-      const result = this.httpService.axiosRef
+      this.httpService.axiosRef
         .get(
-          `https://i.textyou.online/campaign/nl/v1/enum/lookup/MNP/${phoneNumber}`,
+          `https://i.textyou.online/campaign/nl/v1/enum/lookup?product=Mobius MNP&phone_number=${phoneNumber}`,
           {
             headers: {
               Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
@@ -513,11 +517,89 @@ export class CsvService {
         )
         .then((res) => {
           forReturn = res.data;
+          let type = res.data.number_type;
+          if (type === 0) {
+            type = null;
+          } else if (type === 2) {
+            type = 'landline';
+          } else if (type === 3) {
+            type = 'mobile';
+          }
+          const carrier = res.data.operator_name;
+
+          this.apiResultModel.updateOne(
+            { phoneNumber: phoneNumber },
+            {
+              $set: {
+                carrier: carrier,
+                type: type,
+              },
+            },
+            { upsert: true },
+          );
         })
         .catch((err) => {
           console.log(err);
         });
       return forReturn;
     }
+  }
+  async detectArrayCarrier(phoneNumbers: string[]) {
+    for (let i = 0; i < phoneNumbers.length; i++) {
+      const validPhone = phone(phoneNumbers[i]);
+      if (validPhone.isValid) {
+        phoneNumbers[i] = validPhone.phoneNumber.slice(1);
+      } else {
+        phoneNumbers.splice(i, 1);
+      }
+    }
+    //let end: any = false;
+    const forReturn: any = { unknown: 0, landline: 0, mobile: 0 };
+    if (phoneNumbers.length > 0) {
+      const bulkOps = [];
+
+      await this.httpService.axiosRef
+        .post(
+          'https://i.textyou.online/campaign/nl/v1/enum/lookup',
+          { product: 'Mobius MNP', phone_numbers: phoneNumbers },
+          {
+            headers: {
+              Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
+              'Content-Type': 'application/json',
+            },
+          },
+        )
+        .then(async (res) => {
+          console.log(res.data);
+          for (let i = 0; i < res.data.length; i++) {
+            let type = res.data[i].number_type;
+            if (type === 0) {
+              forReturn.unknown++;
+              type = null;
+            } else if (type === 2) {
+              forReturn.landline++;
+              type = 'landline';
+            } else if (type === 3) {
+              forReturn.mobile++;
+              type = 'mobile';
+            }
+            const carrier = res.data[i].operator_name;
+
+            const filter = { phoneNumber: res.data[i].phone_number };
+
+            const update = { $set: { carrier: carrier, type: type } };
+
+            bulkOps.push(filter, update, { upsert: true });
+          }
+          await this.apiResultModel.bulkWrite(bulkOps);
+          await this.baseModel.bulkWrite(bulkOps);
+          await this.csvModel.bulkWrite(bulkOps);
+          return forReturn;
+        })
+        .catch((err) => {
+          throw new HttpException(err, 500);
+        });
+    }
+    return forReturn;
   }
 }

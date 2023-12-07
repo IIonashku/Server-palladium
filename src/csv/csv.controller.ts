@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
   InternalServerErrorException,
   Param,
   Post,
@@ -13,6 +14,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiTags,
@@ -21,6 +23,8 @@ import { CsvService } from './csv.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
+import { LimitAndFilters, NumberString } from './swagger.csv.dto';
+
 let readingStatus: string = 'Not reading';
 @ApiTags('CSV controller')
 @UseGuards(AuthGuard)
@@ -35,6 +39,7 @@ export class CsvController {
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
+  @ApiBody({ type: LimitAndFilters })
   @Post('/data/')
   async getCsvData(@Body() options: any, @Body() filters: any) {
     if (options.options.skips < 0 && options.options.limits < 0) {
@@ -55,6 +60,7 @@ export class CsvController {
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
+  @ApiBody({ type: LimitAndFilters })
   @Post('/analisys/data/')
   async getAnalisysData(@Body() options: any) {
     if (options.options.skips < 0 && options.options.limits < 0) {
@@ -250,7 +256,20 @@ export class CsvController {
       const result = await this.csvService.detectCarrier(phoneNumber);
       return result;
     } catch (e) {
-      console.log(e);
+      throw new HttpException(e, 500);
+    }
+  }
+
+  @ApiOperation({ summary: 'check phone number`s carrier and type' })
+  @ApiBody({ type: NumberString })
+  @Post('/check/carrier/')
+  async checkArrayCarrier(@Body('phoneNumber') phoneNumber: any[]) {
+    console.log(phoneNumber);
+    try {
+      const result = await this.csvService.detectArrayCarrier(phoneNumber);
+      return result;
+    } catch (e) {
+      throw new HttpException(e, 500);
     }
   }
 }
