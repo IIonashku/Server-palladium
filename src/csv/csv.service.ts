@@ -585,6 +585,7 @@ export class CsvService {
               type = 'mobile';
             }
             const carrier = res.data[i].operator_name;
+            console.log(res.data[i].phone_number, 22, carrier, 333, type);
 
             const filter = { phoneNumber: res.data[i].phone_number };
 
