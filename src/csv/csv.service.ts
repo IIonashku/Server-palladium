@@ -602,10 +602,14 @@ export class CsvService {
 
               bulkOps.push({ updateOne: { filter, update, upsert: true } });
             }
-            await this.apiResultModel.bulkWrite(bulkOps);
-            await this.baseModel.bulkWrite(bulkOps);
-            await this.csvModel.bulkWrite(bulkOps);
-            resolve(forReturn);
+            try {
+              await this.apiResultModel.bulkWrite(bulkOps);
+              await this.baseModel.bulkWrite(bulkOps);
+              await this.csvModel.bulkWrite(bulkOps);
+              resolve(forReturn);
+            } catch (e) {
+              console.log(e);
+            }
           })
           .catch((err) => {
             throw new HttpException(err, 500);
