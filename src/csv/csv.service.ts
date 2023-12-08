@@ -12,7 +12,6 @@ import phone from 'phone';
 import { CsvInsertDto, CsvUpdateDto } from './main/csv.dto';
 import { Analisys } from './analisys/csv.analisys.schema';
 import { Basecsv } from './base/base.csv.schema';
-import { ApiResult } from './carrier api/carrier.api.result.schema';
 import { HttpService } from '@nestjs/axios';
 
 type allFilter = {
@@ -33,8 +32,6 @@ export class CsvService {
     @InjectModel(Csv.name) private readonly csvModel: Model<Csv>,
     @InjectModel(Analisys.name) private readonly analisysModel: Model<Analisys>,
     @InjectModel(Basecsv.name) private readonly baseModel: Model<Basecsv>,
-    @InjectModel(ApiResult.name)
-    private readonly apiResultModel: Model<ApiResult>,
     private readonly httpService: HttpService,
   ) {}
 
@@ -515,7 +512,7 @@ export class CsvService {
             },
           },
         )
-        .then((res) => {
+        .then(async (res) => {
           forReturn = res.data;
           let type = res.data.number_type;
           if (type === 0) {
@@ -527,7 +524,17 @@ export class CsvService {
           }
           const carrier = res.data.operator_name;
 
-          this.apiResultModel.updateOne(
+          await this.baseModel.updateOne(
+            { phoneNumber: phoneNumber },
+            {
+              $set: {
+                carrier: carrier,
+                type: type,
+              },
+            },
+            { upsert: true },
+          );
+          await this.csvModel.updateOne(
             { phoneNumber: phoneNumber },
             {
               $set: {
@@ -545,18 +552,6 @@ export class CsvService {
     }
   }
   async detectArrayCarrier(phoneNumbers: string[]) {
-    const duplicates = await this.apiResultModel.find({
-      phoneNumber: { $in: phoneNumbers },
-    });
-    if (duplicates.length > 0) {
-      for (let i = 0; i < duplicates.length; i++) {
-        for (let k = 0; k < phoneNumbers.length; k++) {
-          if (duplicates[i].phoneNumber === phoneNumbers[k]) {
-            phoneNumbers = phoneNumbers.splice(k, 1);
-          }
-        }
-      }
-    }
     for (let i = 0; i < phoneNumbers.length; i++) {
       const validPhone = phone(phoneNumbers[i]);
       if (validPhone.isValid) {
@@ -586,7 +581,9 @@ export class CsvService {
               let type = res.data[i].number_type;
               if (type === 0) {
                 forReturn.unknown++;
-                type = null;
+                type = 'unknow';
+              } else if (type === 1) {
+                type = 'invalid';
               } else if (type === 2) {
                 forReturn.landline++;
                 type = 'landline';
@@ -594,7 +591,9 @@ export class CsvService {
                 forReturn.mobile++;
                 type = 'mobile';
               }
-              const carrier = res.data[i].operator_name;
+              const carrier = res.data[i].operator_name
+                ? res.data[i].operator_name
+                : 'unknown';
 
               const filter = { phoneNumber: res.data[i].phone_number };
 
@@ -603,17 +602,17 @@ export class CsvService {
               bulkOps.push({ updateOne: { filter, update, upsert: true } });
             }
             try {
-              await this.apiResultModel.bulkWrite(bulkOps);
               await this.baseModel.bulkWrite(bulkOps);
               await this.csvModel.bulkWrite(bulkOps);
               resolve(forReturn);
             } catch (e) {
               console.log(e);
+              reject(e);
             }
           })
           .catch((err) => {
-            throw new HttpException(err, 500);
             reject(err);
+            throw new HttpException(err, 500);
           });
       });
       await resultProcess;
