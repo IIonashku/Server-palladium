@@ -552,14 +552,6 @@ export class CsvService {
     }
   }
   async detectArrayCarrier(phoneNumbers: string[]) {
-    for (let i = 0; i < phoneNumbers.length; i++) {
-      const validPhone = phone(phoneNumbers[i]);
-      if (validPhone.isValid) {
-        phoneNumbers[i] = validPhone.phoneNumber.slice(1);
-      } else {
-        phoneNumbers.splice(i, 1);
-      }
-    }
     const forReturn: any = { unknown: 0, landline: 0, mobile: 0 };
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
