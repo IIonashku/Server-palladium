@@ -24,6 +24,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
 import { LimitAndFilters, NumberString } from './swagger.csv.dto';
+import phone from 'phone';
 
 let readingStatus: string = 'Not reading';
 @ApiTags('CSV controller')
@@ -254,6 +255,18 @@ export class CsvController {
   async checkCarrier(@Param('phoneNumber') phoneNumber: any) {
     try {
       const result = await this.csvService.detectCarrier(phoneNumber);
+      return result;
+    } catch (e) {
+      throw new HttpException(e, 500);
+    }
+  }
+
+  @ApiOperation({ summary: 'check phone number`s carrier and type' })
+  @ApiParam({ name: 'phoneNumber' })
+  @Get('/check/carrier/test/:phoneNumber')
+  async TestcheckCarrier(@Param('phoneNumber') phoneNumber: any) {
+    try {
+      const result = phone(phoneNumber);
       return result;
     } catch (e) {
       throw new HttpException(e, 500);

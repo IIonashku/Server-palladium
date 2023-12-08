@@ -571,21 +571,28 @@ export class CsvService {
           .then(async (res) => {
             for (let i = 0; i < res.data.length; i++) {
               let type = res.data[i].number_type;
-              if (type === 0) {
-                forReturn.unknown++;
-                type = 'unknow';
-              } else if (type === 1) {
-                type = 'invalid';
-              } else if (type === 2) {
-                forReturn.landline++;
-                type = 'landline';
-              } else if (type === 3) {
-                forReturn.mobile++;
-                type = 'mobile';
+              let carrier;
+              if (res.data[i].country_iso2 === 'CA') {
+                type = 'Canadian';
+
+                carrier = 'Canadian';
+              } else {
+                if (type === 0) {
+                  forReturn.unknown++;
+                  type = 'unknow';
+                } else if (type === 1) {
+                  type = 'invalid';
+                } else if (type === 2) {
+                  forReturn.landline++;
+                  type = 'landline';
+                } else if (type === 3) {
+                  forReturn.mobile++;
+                  type = 'mobile';
+                }
+                carrier = res.data[i].operator_name
+                  ? res.data[i].operator_name
+                  : 'unknown';
               }
-              const carrier = res.data[i].operator_name
-                ? res.data[i].operator_name
-                : 'unknown';
 
               const filter = { phoneNumber: res.data[i].phone_number };
 
