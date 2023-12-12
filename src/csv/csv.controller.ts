@@ -27,6 +27,7 @@ import { LimitAndFilters, NumberString } from './swagger.csv.dto';
 import phone from 'phone';
 
 let readingStatus: string = 'Not reading';
+export let numOfFile: number = 0;
 @ApiTags('CSV controller')
 @UseGuards(AuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -125,7 +126,9 @@ export class CsvController {
       throw new BadRequestException('No file founded(file expected)');
     }
     for (let i = 0; i < files.length; i += 1) {
+      numOfFile += 1;
       if (files[i].mimetype !== 'text/csv') {
+        numOfFile = 0;
         throw new UnsupportedMediaTypeException('Csv file only');
       }
     }

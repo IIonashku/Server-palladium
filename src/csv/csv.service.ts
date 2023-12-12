@@ -13,6 +13,7 @@ import { CsvInsertDto, CsvUpdateDto } from './main/csv.dto';
 import { Analisys } from './analisys/csv.analisys.schema';
 import { Basecsv } from './base/base.csv.schema';
 import { HttpService } from '@nestjs/axios';
+import { numOfFile } from './csv.controller';
 
 type allFilter = {
   phoneNumber: object;
@@ -151,6 +152,9 @@ export class CsvService {
             case 'carrier':
               carrierIndex = i;
               break;
+            case 'phone':
+              phoneNumberIndex = i;
+              break;
           }
         }
       }
@@ -170,8 +174,8 @@ export class CsvService {
         if (phonesSize !== phones.size) {
           data.push(element);
           uploadingphones.push(row[phoneNumberIndex]);
-          if (data.length === 50000) {
-            this.numberOfUploadedData += 50000;
+          if (data.length === Math.floor(500_000 / numOfFile)) {
+            this.numberOfUploadedData += Math.floor(500_000 / numOfFile);
             lenghtOfData += data.length;
             saver(data, uploadingphones, fileName, model, modelBase).then(
               (res) => {
@@ -193,7 +197,7 @@ export class CsvService {
       }
     };
     /////////////////////////////////////////////////////////////
-    const phoneNumberIndex = 0;
+    let phoneNumberIndex = 0;
     let firstNameIndex = 10;
     let lastNameIndex = 10;
     let typeIndex = 10;
@@ -295,6 +299,9 @@ export class CsvService {
             case 'lastname':
               lastNameIndex = i;
               break;
+            case 'phone':
+              phoneNumberIndex = i;
+              break;
             // case 'type':
             //   typeIndex = i;
             //   break;
@@ -337,7 +344,7 @@ export class CsvService {
 
     ////////////////////////////////////////////////////
 
-    const phoneNumberIndex = 0;
+    let phoneNumberIndex = 0;
     let firstNameIndex = 10;
     let lastNameIndex = 10;
     // let typeIndex = 10;
