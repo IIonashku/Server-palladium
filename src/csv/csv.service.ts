@@ -135,7 +135,8 @@ export class CsvService {
       relax_column_count_more: true,
     });
     const onData = async (row: string[]) => {
-      const validPhone = phone(row[0]);
+      const validPhone = phone(row[phoneNumberIndex]);
+
       if (first) {
         first = false;
         for (let i = 0; i < row.length; i++) {
@@ -159,9 +160,12 @@ export class CsvService {
         }
       }
       if (validPhone.isValid) {
-        row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
+        row[phoneNumberIndex] = validPhone.phoneNumber.slice(
+          1,
+          validPhone.phoneNumber.length,
+        );
         const phonesSize = phones.size;
-        phones.add(row[0]);
+        phones.add(row[phoneNumberIndex]);
         const element: CsvInsertDto = {
           phoneNumber: row[phoneNumberIndex],
           firstName: row[firstNameIndex],
@@ -311,11 +315,14 @@ export class CsvService {
           }
         }
       }
-      const validPhone = phone(row[0]);
+      const validPhone = phone(row[phoneNumberIndex]);
       if (validPhone.isValid) {
-        row[0] = validPhone.phoneNumber.slice(1, validPhone.phoneNumber.length);
+        row[phoneNumberIndex] = validPhone.phoneNumber.slice(
+          1,
+          validPhone.phoneNumber.length,
+        );
         const phonesSize = phones.size;
-        phones.add(row[0]);
+        phones.add(row[phoneNumberIndex]);
 
         const element: CsvUpdateDto = {
           phoneNumber: row[phoneNumberIndex],
