@@ -475,11 +475,9 @@ export class CsvService {
   }
 
   async getAnalisysData(skips: number, limits: number) {
-    const data = await this.analisysModel.find(
-      {},
-      {},
-      { skip: skips, limit: limits },
-    );
+    const data = await this.analisysModel
+      .find({}, {}, { skip: skips, limit: limits })
+      .sort({ _id: -1 });
     const jsonData = JSON.stringify(data);
     return jsonData;
   }
