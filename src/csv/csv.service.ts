@@ -13,7 +13,7 @@ import { CsvInsertDto, CsvUpdateDto } from './main/csv.dto';
 import { Analisys } from './analisys/csv.analisys.schema';
 import { Basecsv } from './base/base.csv.schema';
 import { HttpService } from '@nestjs/axios';
-import { numOfFile } from './csv.controller';
+import { fileReaded, numOfFile } from './csv.controller';
 
 type allFilter = {
   phoneNumber: object;
@@ -220,6 +220,7 @@ export class CsvService {
               },
             );
             lenghtOfData += data.length;
+            fileReaded();
             resolve({
               badDataCounter: badCounter,
               duplicateInFile: countOfDuplicateInFile,
@@ -417,58 +418,47 @@ export class CsvService {
 
   //////////////////////////////////////////////////////
 
-  async getData(skips: number, limits: number, filters: any = undefined) {
+  async getData(
+    skips: number,
+    limits: number,
+    filters: any = undefined,
+    displayString: string[],
+  ) {
     const f: optionalFilter = {};
-    if (filters.filters) {
-      if (filters.filters.phoneNumber)
-        f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
-      if (filters.filters.listTag)
-        f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
-      if (
-        filters.filters.carrier &&
-        filters.filters.carrier !== 'nullTypeAndCarrier'
-      )
-        f.carrier = { $regex: RegExp(filters.filters.carrier) };
-      else if (filters.filters.carrier === 'nullTypeAndCarrier') {
+    if (filters) {
+      if (filters.phoneNumber)
+        f.phoneNumber = { $regex: RegExp(filters.phoneNumber) };
+      if (filters.listTag)
+        f.listTag = { $elemMatch: { $regex: RegExp(filters.listTag) } };
+      if (filters.carrier && filters.carrier !== 'nullTypeAndCarrier')
+        f.carrier = { $regex: RegExp(filters.carrier) };
+      else if (filters.carrier === 'nullTypeAndCarrier') {
         f.carrier = null;
         f.type = null;
       }
-      if (filters.filters.inBase != undefined)
-        f.inBase = filters.filters.inBase;
+      if (filters.inBase != undefined) f.inBase = filters.inBase;
     }
     const data = await this.csvModel
       .find(f, {}, { skip: skips, limit: limits })
-      .select([
-        'phoneNumber',
-        'firstName',
-        'lastName',
-        'type',
-        'carrier',
-        'listTag',
-        'inBase',
-      ]);
+      .select(displayString);
     const jsonData = JSON.stringify(data);
     return jsonData;
   }
 
   async getDataLenght(filters?: any) {
     const f: optionalFilter = {};
-    if (filters.filters) {
-      if (filters.filters.phoneNumber)
-        f.phoneNumber = { $regex: RegExp(filters.filters.phoneNumber) };
-      if (filters.filters.listTag)
-        f.listTag = { $elemMatch: { $regex: RegExp(filters.filters.listTag) } };
-      if (
-        filters.filters.carrier &&
-        filters.filters.carrier !== 'nullTypeAndCarrier'
-      )
-        f.carrier = { $regex: RegExp(filters.filters.carrier) };
-      else if (filters.filters.carrier === 'nullTypeAndCarrier') {
+    if (filters) {
+      if (filters.phoneNumber)
+        f.phoneNumber = { $regex: RegExp(filters.phoneNumber) };
+      if (filters.listTag)
+        f.listTag = { $elemMatch: { $regex: RegExp(filters.listTag) } };
+      if (filters.carrier && filters.carrier !== 'nullTypeAndCarrier')
+        f.carrier = { $regex: RegExp(filters.carrier) };
+      else if (filters.carrier === 'nullTypeAndCarrier') {
         f.carrier = null;
         f.type = null;
       }
-      if (filters.filters.inBase != undefined)
-        f.inBase = filters.filters.inBase;
+      if (filters.inBase != undefined) f.inBase = filters.inBase;
     }
     const count = await this.csvModel.count(f);
     return count;

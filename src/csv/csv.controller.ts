@@ -28,6 +28,9 @@ import phone from 'phone';
 
 let readingStatus: string = 'Not reading';
 export let numOfFile: number = 0;
+export const fileReaded = (): void => {
+  numOfFile -= 1;
+};
 @ApiTags('CSV controller')
 @UseGuards(AuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -36,22 +39,27 @@ export class CsvController {
   constructor(private readonly csvService: CsvService) {}
 
   @Post('/count/')
-  async getCsvDataLenght(@Body() filters?: any) {
+  async getCsvDataLenght(@Body('filters') filters?: any) {
     return await this.csvService.getDataLenght(filters);
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
   @ApiBody({ type: LimitAndFilters })
   @Post('/data/')
-  async getCsvData(@Body() options: any, @Body() filters: any) {
-    if (options.options.skips < 0 && options.options.limits < 0) {
+  async getCsvData(
+    @Body('options') options: any,
+    @Body('filters') filters: any,
+    @Body('displayStrings') displayStrings: string[],
+  ) {
+    if (options.skips < 0 && options.limits < 0) {
       throw new BadRequestException('Options not correct');
     }
 
     const response = await this.csvService.getData(
-      options.options.skips,
-      options.options.limits,
+      options.skips,
+      options.limits,
       filters,
+      displayStrings,
     );
     return response;
   }
@@ -92,6 +100,7 @@ export class CsvController {
       status: readingStatus,
       uploadedData: data,
       lines: lines,
+      numOfFile: numOfFile,
     };
   }
 
@@ -165,9 +174,14 @@ export class CsvController {
               }
               counter += 1;
               if (counter === files.length) {
-                readingStatus = 'Uploaded';
-                this.csvService.numberOfData = 0;
-                this.csvService.numberOfUploadedData = 0;
+                if (numOfFile === files.length) {
+                  readingStatus = 'Uploaded';
+                  this.csvService.numberOfData = 0;
+                  this.csvService.numberOfUploadedData = 0;
+                } else {
+                  numOfFile -= files.length;
+                }
+
                 resolve(result);
               }
             })
@@ -231,9 +245,13 @@ export class CsvController {
               }
               counter += 1;
               if (counter === files.length) {
-                readingStatus = 'Uploaded';
-                this.csvService.numberOfData = 0;
-                this.csvService.numberOfUploadedData = 0;
+                if (numOfFile === files.length) {
+                  readingStatus = 'Uploaded';
+                  this.csvService.numberOfData = 0;
+                  this.csvService.numberOfUploadedData = 0;
+                } else {
+                  numOfFile -= files.length;
+                }
                 resolve(result);
               }
             })
