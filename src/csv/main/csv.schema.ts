@@ -45,3 +45,8 @@ export class Csv {
 }
 
 export const CsvSchema = SchemaFactory.createForClass(Csv);
+
+CsvSchema.index({ listTag: 1 });
+CsvSchema.index({ type: 1 });
+CsvSchema.index({ carrier: 1 });
+CsvSchema.index({ inBase: 1 });
