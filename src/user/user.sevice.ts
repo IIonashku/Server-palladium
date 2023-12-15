@@ -90,6 +90,54 @@ export class UserService {
       .select(['_id', 'username', 'role']);
   }
 
+  async findUserAndUpdatePassword(
+    id: string,
+    newPassword: string[],
+    oldPassword: string,
+  ) {
+    const oldPasswordInBase = await this.userRepository.findById(id);
+    if (oldPasswordInBase) {
+      const isMatch = await bcrypt.compare(
+        oldPassword,
+        oldPasswordInBase.password,
+      );
+      if (newPassword[0] === newPassword[1]) {
+        if (isMatch) {
+          const hash = await bcrypt.hash(newPassword[1], 10);
+
+          return await this.userRepository
+            .findOneAndUpdate({ _id: id }, { password: hash })
+            .select(['_id', 'username', 'role']);
+        } else
+          throw new HttpException(
+            'Password not correct',
+            HttpStatus.BAD_REQUEST,
+          );
+      } else
+        throw new HttpException(
+          'new password and confirm password not the same',
+          HttpStatus.BAD_REQUEST,
+        );
+    } else throw new HttpException('User not exist', HttpStatus.BAD_REQUEST);
+  }
+
+  async findUserAndUpdateUsername(
+    id: string,
+    password: string,
+    newUsername: string,
+  ) {
+    const oldUserInBase = await this.userRepository.findById(id);
+    if (oldUserInBase) {
+      const isMatch = await bcrypt.compare(password, oldUserInBase.password);
+      if (isMatch) {
+        return await this.userRepository
+          .findOneAndUpdate({ _id: id }, { username: newUsername })
+          .select(['_id', 'username', 'role']);
+      } else
+        throw new HttpException('Password not correct', HttpStatus.BAD_REQUEST);
+    } else throw new HttpException('User not exist', HttpStatus.BAD_REQUEST);
+  }
+
   async deleteUserById(id: string) {
     return await this.userRepository.findByIdAndDelete(id);
   }

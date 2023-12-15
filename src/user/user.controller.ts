@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpException,
   HttpStatus,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.sevice';
@@ -57,5 +59,43 @@ export class UserController {
       token.headers.authorization.split(' ')[1],
     );
     return this.userService.deleteUserById(payload.sub);
+  }
+
+  @ApiOperation({ summary: 'Get user' })
+  @ApiBearerAuth('JWT-auth')
+  @Post('change/password/')
+  async changePassword(
+    @Body('oldPassword') oldPassword: string,
+    @Body('newPassword') newPassword: string[],
+  ) {
+    console.log(oldPassword, newPassword);
+    const token: any = await this.userService.getRequest();
+    const payload: any = this.jwtService.decode(
+      token.headers.authorization.split(' ')[1],
+    );
+    return this.userService.findUserAndUpdatePassword(
+      payload.sub,
+      newPassword,
+      oldPassword,
+    );
+  }
+
+  @ApiOperation({ summary: 'Get user' })
+  @ApiBearerAuth('JWT-auth')
+  @Post('change/username/')
+  async updateUsername(
+    @Body('password') password: string,
+    @Body('newUsername') newUsername: string,
+  ) {
+    console.log(password, newUsername);
+    const token: any = await this.userService.getRequest();
+    const payload: any = this.jwtService.decode(
+      token.headers.authorization.split(' ')[1],
+    );
+    return this.userService.findUserAndUpdateUsername(
+      payload.sub,
+      password,
+      newUsername,
+    );
   }
 }
