@@ -450,8 +450,9 @@ export class CsvService {
     if (filters) {
       if (filters.phoneNumber)
         f.phoneNumber = { $regex: RegExp(filters.phoneNumber) };
-      if (filters.listTag)
+      if (filters.listTag) {
         f.listTag = { $elemMatch: { $regex: RegExp(filters.listTag) } };
+      }
       if (filters.carrier && filters.carrier !== 'nullTypeAndCarrier')
         f.carrier = { $regex: RegExp(filters.carrier) };
       else if (filters.carrier === 'nullTypeAndCarrier') {
@@ -461,6 +462,14 @@ export class CsvService {
       if (filters.inBase != undefined) f.inBase = filters.inBase;
     }
     const count = await this.csvModel.count(f);
+    return count;
+  }
+  async getAnalisysValidData(fileName: string) {
+    const regexp = RegExp(fileName);
+    const analis = await this.analisysModel.findOne({
+      fileName: { $regex: regexp },
+    });
+    const count = analis.validDataCounter;
     return count;
   }
 

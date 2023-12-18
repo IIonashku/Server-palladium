@@ -38,9 +38,16 @@ export const fileReaded = (): void => {
 export class CsvController {
   constructor(private readonly csvService: CsvService) {}
 
+  @ApiOperation({ summary: 'get data count' })
   @Post('/count/')
   async getCsvDataLenght(@Body('filters') filters?: any) {
     return await this.csvService.getDataLenght(filters);
+  }
+
+  @ApiOperation({ summary: 'get list data count' })
+  @Get('/analis/data/count/:fileName')
+  async getAnalisysValidDataLenght(@Param('fileName') fileName: any) {
+    return await this.csvService.getAnalisysValidData(fileName);
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
