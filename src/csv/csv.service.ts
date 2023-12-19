@@ -485,7 +485,7 @@ export class CsvService {
 
     fsWrite.writeFile(
       './export/export.csv',
-      'Phone number,First name, Last name, Carrier, Type',
+      'Phone number,First name, Last name, Carrier, Type\n',
     );
     const newPromise = new Promise((resolve, reject) => {
       cursor
