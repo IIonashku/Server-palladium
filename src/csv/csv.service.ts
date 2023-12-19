@@ -14,6 +14,16 @@ import { Analisys } from './analisys/csv.analisys.schema';
 import { Basecsv } from './base/base.csv.schema';
 import { HttpService } from '@nestjs/axios';
 import { fileReaded, numOfFile } from './csv.controller';
+import * as fsWrite from 'node:fs/promises';
+
+type csvData = {
+  phoneNumber: string;
+  firstName: string;
+  lastName: string;
+  carrier: string;
+  type: string;
+  listTag: string;
+};
 
 type allFilter = {
   phoneNumber: object;
@@ -443,6 +453,55 @@ export class CsvService {
       .select(displayString);
     const jsonData = JSON.stringify(data);
     return jsonData;
+  }
+
+  async exportData(filters: any = undefined, displayString: string[]) {
+    const f: optionalFilter = {};
+    let limits;
+    if (filters) {
+      if (filters.phoneNumber)
+        f.phoneNumber = { $regex: RegExp(filters.phoneNumber) };
+      if (filters.listTag) {
+        f.listTag = { $elemMatch: { $regex: RegExp(filters.listTag) } };
+        const analis = await this.analisysModel.findOne({
+          fileName: { $regex: RegExp(filters.listTag) },
+        });
+        limits = analis.validDataCounter;
+      }
+
+      if (filters.carrier && filters.carrier !== 'nullTypeAndCarrier')
+        f.carrier = { $regex: RegExp(filters.carrier) };
+      else if (filters.carrier === 'nullTypeAndCarrier') {
+        f.carrier = null;
+        f.type = null;
+      }
+
+      if (filters.inBase != undefined) f.inBase = filters.inBase;
+    }
+    const cursor = this.csvModel
+      .find(f, {}, { skip: 0, limit: limits ? limits : 1_000_000 })
+      .select(displayString)
+      .cursor();
+
+    fsWrite.writeFile(
+      './export/export.csv',
+      'Phone number,First name, Last name, Carrier, Type, List tag\n',
+    );
+    const newPromise = new Promise((resolve, reject) => {
+      cursor
+        .on('data', (data: csvData) => {
+          const csvLine = `${data.phoneNumber},${
+            data.firstName ? data.firstName : ''
+          },${data.lastName ? data.lastName : ''},${
+            data.type ? data.type : ''
+          },${data.carrier ? data.carrier : ''},"${data.listTag}"\n`;
+          fs.appendFile('./export/export.csv', csvLine, () => {});
+        })
+        .on('end', () => {
+          resolve('true');
+        });
+    });
+    return await newPromise;
   }
 
   async getDataLenght(filters?: any) {

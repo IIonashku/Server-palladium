@@ -8,6 +8,7 @@ import {
   InternalServerErrorException,
   Param,
   Post,
+  Res,
   UnsupportedMediaTypeException,
   UploadedFiles,
   UseGuards,
@@ -25,6 +26,8 @@ import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
 import { LimitAndFilters, NumberString } from './swagger.csv.dto';
 import phone from 'phone';
+import { Response } from 'express';
+import { createReadStream } from 'node:fs';
 
 let readingStatus: string = 'Not reading';
 export let numOfFile: number = 0;
@@ -69,6 +72,29 @@ export class CsvController {
       displayStrings,
     );
     return response;
+  }
+
+  @ApiOperation({ summary: 'Get data for front-end' })
+  @ApiBody({ type: LimitAndFilters })
+  @Post('/export/')
+  async exportData(
+    @Body('filters') filters: any,
+    @Body('displayStrings') displayStrings: string[],
+  ) {
+    await this.csvService.exportData(filters, displayStrings);
+    return true;
+  }
+
+  @ApiOperation({ summary: 'Get data for front-end' })
+  @ApiBody({ type: LimitAndFilters })
+  @Get('/download/')
+  async downloadExportFile(@Res() response: Response) {
+    response.setHeader(
+      'Content-Disposition',
+      'attachment; filename=export_csv.csv',
+    );
+    const fileToUpload = createReadStream('./export/export.csv');
+    fileToUpload.pipe(response);
   }
 
   @Post('/analisys/count/')
