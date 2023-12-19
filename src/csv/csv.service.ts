@@ -483,19 +483,19 @@ export class CsvService {
       .select(displayString)
       .cursor();
 
-    fsWrite.writeFile(
+    await fsWrite.writeFile(
       './export/export.csv',
-      'Phone number,First name, Last name, Carrier, Type\n',
+      'Phone number,First name, Last name, Carrier, Type, List tag\n',
     );
     const newPromise = new Promise((resolve, reject) => {
       cursor
-        .on('data', (data: csvData) => {
+        .on('data', async (data: csvData) => {
           const csvLine = `${data.phoneNumber},${
             data.firstName ? data.firstName : ''
           },${data.lastName ? data.lastName : ''},${
             data.type ? data.type : ''
-          },${data.carrier ? data.carrier : ''}`;
-          fs.appendFile('./export/export.csv', csvLine, () => {});
+          },${data.carrier ? data.carrier : ''},${data.listTag}`;
+          await fsWrite.appendFile('./export/export.csv', csvLine + '\n');
         })
         .on('end', () => {
           resolve('true');
