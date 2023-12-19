@@ -494,7 +494,7 @@ export class CsvService {
             data.firstName ? data.firstName : ''
           },${data.lastName ? data.lastName : ''},${
             data.type ? data.type : ''
-          },${data.carrier ? data.carrier : ''},"${data.listTag}",`;
+          },${data.carrier ? data.carrier : ''},`;
           fs.appendFile('./export/export.csv', csvLine + '\n', () => {});
         })
         .on('end', () => {
