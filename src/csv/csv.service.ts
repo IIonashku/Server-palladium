@@ -485,7 +485,7 @@ export class CsvService {
 
     await fsWrite.writeFile(
       './export/export.csv',
-      'Phone number,First name, Last name, Carrier, Type, List tag\n',
+      'Phone number,First name, Last name, Carrier, Type\n',
     );
     const newPromise = new Promise((resolve, reject) => {
       cursor
@@ -494,7 +494,7 @@ export class CsvService {
             data.firstName ? data.firstName : ''
           },${data.lastName ? data.lastName : ''},${
             data.type ? data.type : ''
-          },${data.carrier ? data.carrier : ''},"${data.listTag}"`;
+          },${data.carrier ? data.carrier : ''}`;
           await fsWrite.appendFile('./export/export.csv', csvLine + '\n');
         })
         .on('end', () => {
