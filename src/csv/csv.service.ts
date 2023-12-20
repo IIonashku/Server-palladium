@@ -699,7 +699,7 @@ export class CsvService {
     const bulkOps = [];
 
     for (let i = 0; i < data.length; i++) {
-      const index = data[i].carrier.indexOf('\\r');
+      const index = data[i].lastName.indexOf('\\r');
       data[i].lastName.slice(index, 2);
       const newLastName = data[i].lastName;
 
