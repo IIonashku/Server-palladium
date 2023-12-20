@@ -690,6 +690,10 @@ export class CsvService {
   }
 
   async fixBrokenField() {
+    const count = await this.csvModel.count({
+      lastName: { $regex: RegExp('\\r') },
+    });
+    return count;
     const data = await this.csvModel
       .find({
         lastName: { $regex: RegExp('\\r') },
