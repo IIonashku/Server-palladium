@@ -701,7 +701,7 @@ export class CsvService {
     for (let i = 0; i < data.length; i++) {
       const index = data[i].carrier.indexOf('\\r');
       data[i].lastName.slice(index, 2);
-      const newLastName = data[i].carrier;
+      const newLastName = data[i].lastName;
 
       const filter = { phoneNumber: data[i].phoneNumber };
 
