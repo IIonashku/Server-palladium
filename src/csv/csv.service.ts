@@ -487,7 +487,7 @@ export class CsvService {
       './export/export.csv',
       'Phone number,First name, Last name, Carrier, Type\n',
     );
-    const newPromise = new Promise((resolve, reject) => {
+    const newPromise = new Promise((resolve) => {
       cursor
         .on('data', async (data: csvData) => {
           const csvLine = `${data.phoneNumber},${
@@ -686,6 +686,19 @@ export class CsvService {
       });
       await resultProcess;
       return forReturn;
+    }
+  }
+
+  async fixBrokenField() {
+    const data = await this.csvModel.find({
+      carrier: { $regex: RegExp('\\r') },
+    });
+    console.log(RegExp('\\r'));
+    console.log(data.length);
+
+    for (let i = 0; i < data.length; i++) {
+      const index = data[i].carrier.indexOf('\\r');
+      console.log(index);
     }
   }
 }

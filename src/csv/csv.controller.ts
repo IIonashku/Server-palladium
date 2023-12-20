@@ -338,4 +338,11 @@ export class CsvController {
       throw new HttpException(e, 500);
     }
   }
+
+  @ApiOperation({ summary: 'Fix all damaged field in database' })
+  @Public()
+  @Get('/fix')
+  async fixField() {
+    return await this.csvService.fixBrokenField();
+  }
 }
