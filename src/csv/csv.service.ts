@@ -693,6 +693,7 @@ export class CsvService {
     const count = await this.csvModel.count({
       carrier: { $regex: RegExp('\\r') },
     });
+    return count;
     // const data = await this.csvModel
     //   .find({
     //     carrier: { $regex: RegExp('\\r') },
