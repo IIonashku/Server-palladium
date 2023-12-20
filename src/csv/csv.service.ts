@@ -689,33 +689,63 @@ export class CsvService {
     }
   }
 
-  async fixBrokenField() {
-    const data = await this.csvModel
+  async fixBrokenLastName() {
+    const cursor = this.csvModel
       .find({
         lastName: { $regex: RegExp('\\r') },
       })
-      .limit(2_000_00);
-    console.log(data.length);
+      .cursor();
 
     const bulkOps = [];
+    const resultPromise = new Promise((resolve) => {
+      cursor
+        .on('data', (data) => {
+          const newLastName = data.lastName.slice(data.lastName.length - 2, 2);
 
-    for (let i = 0; i < data.length; i++) {
-      const newLastName = data[i].lastName.slice(
-        data[i].lastName.length - 2,
-        2,
-      );
+          const filter = { phoneNumber: data.phoneNumber };
 
-      const filter = { phoneNumber: data[i].phoneNumber };
+          const update = { $set: { lastName: newLastName } };
 
-      const update = { $set: { lastName: newLastName } };
-
-      bulkOps.push({
-        updateOne: { filter, update, upsert: true },
-      });
-    }
-
+          bulkOps.push({
+            updateOne: { filter, update, upsert: true },
+          });
+        })
+        .on('end', () => {
+          resolve(true);
+        });
+    });
+    await resultPromise;
     const results = await this.csvModel.bulkWrite(bulkOps);
-    console.log(results);
-    return results.upsertedCount;
+    return results.modifiedCount;
+  }
+
+  async fixBrokenCarrierName() {
+    const cursor = this.csvModel
+      .find({
+        carrier: { $regex: RegExp('\\r') },
+      })
+      .cursor();
+
+    const bulkOps = [];
+    const resultPromise = new Promise((resolve) => {
+      cursor
+        .on('data', (data) => {
+          const newCarrier = data.carrier.slice(data.carrier.length - 2, 2);
+
+          const filter = { phoneNumber: data.phoneNumber };
+
+          const update = { $set: { carrier: newCarrier } };
+
+          bulkOps.push({
+            updateOne: { filter, update, upsert: true },
+          });
+        })
+        .on('end', () => {
+          resolve(true);
+        });
+    });
+    await resultPromise;
+    const results = await this.csvModel.bulkWrite(bulkOps);
+    return results.modifiedCount;
   }
 }

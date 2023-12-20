@@ -339,10 +339,17 @@ export class CsvController {
     }
   }
 
-  @ApiOperation({ summary: 'Fix all damaged field in database' })
+  @ApiOperation({ summary: 'Fix all damaged lastname in database' })
   @Public()
-  @Get('/fix')
-  async fixField() {
-    return await this.csvService.fixBrokenField();
+  @Get('/fix/lastname')
+  async fixLastName() {
+    return await this.csvService.fixBrokenLastName();
+  }
+
+  @ApiOperation({ summary: 'Fix all damaged carrier in database' })
+  @Public()
+  @Get('/fix/carrier')
+  async fixCarrier() {
+    return await this.csvService.fixBrokenCarrierName();
   }
 }
