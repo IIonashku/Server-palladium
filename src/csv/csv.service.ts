@@ -690,22 +690,20 @@ export class CsvService {
   }
 
   async fixBrokenField() {
-    const count = await this.csvModel.count({
-      lastName: { $regex: RegExp('\\r') },
-    });
-    return count;
     const data = await this.csvModel
       .find({
         lastName: { $regex: RegExp('\\r') },
       })
       .limit(2_000_00);
+    console.log(data.length);
 
     const bulkOps = [];
 
     for (let i = 0; i < data.length; i++) {
-      const index = data[i].lastName.indexOf('\\r');
-      data[i].lastName.slice(index, 2);
-      const newLastName = data[i].lastName;
+      const newLastName = data[i].lastName.slice(
+        data[i].lastName.length - 2,
+        2,
+      );
 
       const filter = { phoneNumber: data[i].phoneNumber };
 
@@ -717,6 +715,7 @@ export class CsvService {
     }
 
     const results = await this.csvModel.bulkWrite(bulkOps);
+    console.log(results);
     return results.upsertedCount;
   }
 }
