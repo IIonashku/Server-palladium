@@ -694,7 +694,7 @@ export class CsvService {
       .find({
         carrier: { $regex: RegExp('\\r') },
       })
-      .limit(4_000_00);
+      .limit(2_000_00);
 
     const bulkOps = [];
 
