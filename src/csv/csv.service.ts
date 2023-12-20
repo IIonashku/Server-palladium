@@ -690,15 +690,29 @@ export class CsvService {
   }
 
   async fixBrokenField() {
-    const data = await this.csvModel.find({
-      carrier: { $regex: RegExp('\\r') },
-    });
-    console.log(RegExp('\\r'));
-    console.log(data.length);
+    const data = await this.csvModel
+      .find({
+        carrier: { $regex: RegExp('\\r') },
+      })
+      .limit(4_000_00);
+
+    const bulkOps = [];
 
     for (let i = 0; i < data.length; i++) {
       const index = data[i].carrier.indexOf('\\r');
-      console.log(index);
+      data[i].carrier.slice(index, 2);
+      const newCarrier = data[i].carrier;
+
+      const filter = { phoneNumber: data[i].phoneNumber };
+
+      const update = { $set: { carrier: newCarrier } };
+
+      bulkOps.push({
+        updateOne: { filter, update, upsert: true },
+      });
     }
+
+    const results = await this.csvModel.bulkWrite(bulkOps);
+    return results.upsertedCount;
   }
 }
