@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Analisys, AnalisysSchema } from './analisys/csv.analisys.schema';
 import { Basecsv, BasecsvSchema } from './base/base.csv.schema';
 import { HttpModule } from '@nestjs/axios';
+import { Export, ExportSchema } from './export/export.schema';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { HttpModule } from '@nestjs/axios';
       { name: Csv.name, schema: CsvSchema },
       { name: Basecsv.name, schema: BasecsvSchema },
       { name: Analisys.name, schema: AnalisysSchema },
+      { name: Export.name, schema: ExportSchema },
     ]),
     HttpModule,
   ],

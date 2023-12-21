@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpException,
+  HttpStatus,
   InternalServerErrorException,
   Param,
   Post,
@@ -76,25 +77,33 @@ export class CsvController {
 
   @ApiOperation({ summary: 'Get data for front-end' })
   @ApiBody({ type: LimitAndFilters })
-  @Post('/export/')
+  @Post('/export/:fileName')
   async exportData(
     @Body('filters') filters: any,
     @Body('displayStrings') displayStrings: string[],
+    @Param('fileName') fileName: string,
   ) {
-    await this.csvService.exportData(filters, displayStrings);
+    await this.csvService.exportData(filters, displayStrings, fileName);
     return true;
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
   @ApiBody({ type: LimitAndFilters })
-  @Get('/download/')
-  async downloadExportFile(@Res() response: Response) {
+  @Get('/download/:fileName')
+  async downloadExportFile(
+    @Res() response: Response,
+    @Param('fileName') fileName: string,
+  ) {
     response.setHeader(
       'Content-Disposition',
-      'attachment; filename=export_csv.csv',
+      `attachment; filename=${fileName}.csv`,
     );
-    const fileToUpload = createReadStream('./export/export.csv');
-    fileToUpload.pipe(response);
+    try {
+      const fileToUpload = createReadStream(`./export/${fileName}.csv`);
+      fileToUpload.pipe(response);
+    } catch {
+      throw new HttpException('File not exist', HttpStatus.BAD_REQUEST);
+    }
   }
 
   @Post('/analisys/count/')
@@ -340,16 +349,20 @@ export class CsvController {
   }
 
   @ApiOperation({ summary: 'Fix all damaged lastname in database' })
-  @Public()
   @Get('/fix/lastname')
   async fixLastName() {
     return await this.csvService.fixBrokenLastName();
   }
 
   @ApiOperation({ summary: 'Fix all damaged carrier in database' })
-  @Public()
   @Get('/fix/carrier')
   async fixCarrier() {
     return await this.csvService.fixBrokenCarrierName();
+  }
+
+  @ApiOperation({ summary: 'delete base which already in data' })
+  @Get('/base/clear')
+  async clearBase() {
+    return await this.csvService.clearBase();
   }
 }

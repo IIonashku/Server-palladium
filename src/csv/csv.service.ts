@@ -15,6 +15,7 @@ import { Basecsv } from './base/base.csv.schema';
 import { HttpService } from '@nestjs/axios';
 import { fileReaded, numOfFile } from './csv.controller';
 import * as fsWrite from 'node:fs/promises';
+import { Export } from './export/export.schema';
 
 type csvData = {
   phoneNumber: string;
@@ -42,6 +43,7 @@ export class CsvService {
   constructor(
     @InjectModel(Csv.name) private readonly csvModel: Model<Csv>,
     @InjectModel(Analisys.name) private readonly analisysModel: Model<Analisys>,
+    @InjectModel(Export.name) private readonly exportModel: Model<Export>,
     @InjectModel(Basecsv.name) private readonly baseModel: Model<Basecsv>,
     private readonly httpService: HttpService,
   ) {}
@@ -455,7 +457,11 @@ export class CsvService {
     return jsonData;
   }
 
-  async exportData(filters: any = undefined, displayString: string[]) {
+  async exportData(
+    filters: any = undefined,
+    displayString: string[],
+    fileName,
+  ) {
     const f: optionalFilter = {};
     let limits;
     if (filters) {
@@ -484,7 +490,7 @@ export class CsvService {
       .cursor();
 
     await fsWrite.writeFile(
-      './export/export.csv',
+      `./export/${fileName}.csv`,
       'Phone number,First name, Last name, Carrier, Type\n',
     );
     const newPromise = new Promise((resolve) => {
@@ -495,7 +501,7 @@ export class CsvService {
           },${data.lastName ? data.lastName : ''},${
             data.type ? data.type : ''
           },${data.carrier ? data.carrier : ''}`;
-          await fsWrite.appendFile('./export/export.csv', csvLine + '\n');
+          await fsWrite.appendFile(`./export/${fileName}.csv`, csvLine + '\n');
         })
         .on('end', () => {
           resolve('true');
@@ -747,5 +753,36 @@ export class CsvService {
     await resultPromise;
     const results = await this.csvModel.bulkWrite(bulkOps);
     return results.modifiedCount;
+  }
+
+  async clearBase() {
+    const cursor = this.csvModel
+      .find({ inBase: true })
+      .select(['phoneNumber'])
+      .cursor();
+    const bulkOps = [];
+    let deletedCount = 0;
+    const resultPromise = new Promise((resolve) => {
+      cursor
+        .on('data', async (data) => {
+          const filter = { phoneNumber: data.phoneNumber };
+
+          bulkOps.push({ deleteOne: { filter: filter } });
+          if (bulkOps.length === 2_000_00) {
+            this.baseModel.bulkWrite(bulkOps).then((result) => {
+              deletedCount += result.deletedCount;
+              cursor.resume();
+            });
+            cursor.pause();
+          }
+        })
+        .on('end', () => {
+          this.baseModel.bulkWrite(bulkOps).then((result) => {
+            deletedCount += result.deletedCount;
+            resolve(deletedCount);
+          });
+        });
+    });
+    return await resultPromise;
   }
 }
