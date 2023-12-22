@@ -365,4 +365,22 @@ export class CsvController {
   async clearBase() {
     return await this.csvService.clearBase();
   }
+
+  @ApiOperation({ summary: 'get all Export file available' })
+  @Get('/export/files')
+  async getExportFiles() {
+    return await this.csvService.getExportFiles();
+  }
+
+  @ApiOperation({ summary: 'get all Export file available' })
+  @Get('/export/delete/:fileName')
+  async deleteExportFile(@Param('fileName') fileName: string) {
+    return await this.csvService.deleteExportFile(fileName);
+  }
+
+  @ApiOperation({ summary: 'get data count' })
+  @Get('/fix/count/')
+  async getBrokenDataLenght() {
+    return await this.csvService.getBrokenDataLenght();
+  }
 }

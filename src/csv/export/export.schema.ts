@@ -21,6 +21,24 @@ export class Export {
   @ApiProperty()
   @Prop({ required: true })
   dataCounter: number;
+
+  // filter
+
+  @ApiProperty()
+  @Prop({ required: false })
+  listTag: string;
+
+  @ApiProperty()
+  @Prop({ required: false })
+  carrier: string;
+
+  @ApiProperty()
+  @Prop({ required: false })
+  phoneNumber: string;
+
+  @ApiProperty()
+  @Prop({ required: false })
+  inBase: string;
 }
 
 export const ExportSchema = SchemaFactory.createForClass(Export);

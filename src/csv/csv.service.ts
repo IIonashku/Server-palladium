@@ -1,5 +1,6 @@
 import {
   HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -464,6 +465,7 @@ export class CsvService {
   ) {
     const f: optionalFilter = {};
     let limits;
+    let count = 0;
     if (filters) {
       if (filters.phoneNumber)
         f.phoneNumber = { $regex: RegExp(filters.phoneNumber) };
@@ -502,12 +504,25 @@ export class CsvService {
             data.type ? data.type : ''
           },${data.carrier ? data.carrier : ''}`;
           await fsWrite.appendFile(`./export/${fileName}.csv`, csvLine + '\n');
+          count++;
         })
         .on('end', () => {
           resolve('true');
         });
     });
-    return await newPromise;
+    await newPromise;
+    await this.exportModel.updateOne(
+      { fileName: fileName },
+      {
+        dataCounter: count,
+        phoneNumber: filters.phoneNumber ? filters.phoneNumber : '',
+        listTag: filters.listTag ? filters.listTag : '',
+        carrier: filters.carrier ? filters.carrier : '',
+        inBase: filters.inBase ? filters.inBase : undefined,
+      },
+      { upsert: true },
+    );
+    return newPromise;
   }
 
   async getDataLenght(filters?: any) {
@@ -784,5 +799,26 @@ export class CsvService {
         });
     });
     return await resultPromise;
+  }
+
+  async getExportFiles() {
+    const file = await this.exportModel.find({});
+    return file;
+  }
+
+  async deleteExportFile(fileName: string) {
+    const file = await this.exportModel.find({ fileName: fileName + '.csv' });
+    fs.unlink('./export/' + fileName + '.csv', (err) => {
+      if (err) throw new HttpException(err, HttpStatus.BAD_REQUEST);
+      console.log(`${fileName}.csv was succefully deleted`);
+    });
+    return file;
+  }
+
+  async getBrokenDataLenght() {
+    const carrier = await this.csvModel.count({ carrier: '\\r' });
+    const lastName = await this.csvModel.count({ lastName: '\\r' });
+
+    return { brokenCarrier: carrier, brokenLastname: lastName };
   }
 }
