@@ -1,6 +1,5 @@
 import {
   HttpException,
-  HttpStatus,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -807,11 +806,14 @@ export class CsvService {
   }
 
   async deleteExportFile(fileName: string) {
-    const file = await this.exportModel.find({ fileName: fileName + '.csv' });
+    const file = await this.exportModel.findOneAndDelete({
+      fileName: fileName,
+    });
     fs.unlink('./export/' + fileName + '.csv', (err) => {
-      if (err) throw new HttpException(err, HttpStatus.BAD_REQUEST);
+      if (err) console.log('File not exist');
       console.log(`${fileName}.csv was succefully deleted`);
     });
+
     return file;
   }
 
