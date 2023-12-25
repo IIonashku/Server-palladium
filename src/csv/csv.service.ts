@@ -502,8 +502,8 @@ export class CsvService {
           },${data.lastName ? data.lastName : ''},${
             data.type ? data.type : ''
           },${data.carrier ? data.carrier : ''}`;
-          await fsWrite.appendFile(`./export/${fileName}.csv`, csvLine + '\n');
           count++;
+          await fsWrite.appendFile(`./export/${fileName}.csv`, csvLine + '\n');
         })
         .on('end', () => {
           resolve('true');
