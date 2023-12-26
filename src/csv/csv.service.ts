@@ -774,7 +774,7 @@ export class CsvService {
       .find({ inBase: true })
       .select(['phoneNumber'])
       .cursor();
-    const bulkOps = [];
+    let bulkOps = [];
     let deletedCount = 0;
     const resultPromise = new Promise((resolve) => {
       cursor
@@ -784,11 +784,11 @@ export class CsvService {
           bulkOps.push({ deleteOne: { filter: filter } });
           if (bulkOps.length === 4_000_00) {
             console.log('in');
-            await this.baseModel.bulkWrite(bulkOps).then((result) => {
-              console.log('OUT');
+
+            this.baseModel.bulkWrite(bulkOps).then((result) => {
+              bulkOps = [];
               deletedCount += result.deletedCount;
               cursor.resume();
-              console.log('return');
             });
             cursor.pause();
           }
