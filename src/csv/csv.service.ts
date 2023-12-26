@@ -783,6 +783,7 @@ export class CsvService {
 
           bulkOps.push({ deleteOne: { filter: filter } });
           if (bulkOps.length === 4_000_00) {
+            console.log('in');
             await this.baseModel.bulkWrite(bulkOps).then((result) => {
               deletedCount += result.deletedCount;
               cursor.resume();
