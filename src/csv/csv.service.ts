@@ -782,8 +782,8 @@ export class CsvService {
           const filter = { phoneNumber: data.phoneNumber };
 
           bulkOps.push({ deleteOne: { filter: filter } });
-          if (bulkOps.length === 2_000_00) {
-            this.baseModel.bulkWrite(bulkOps).then((result) => {
+          if (bulkOps.length === 4_000_00) {
+            await this.baseModel.bulkWrite(bulkOps).then((result) => {
               deletedCount += result.deletedCount;
               cursor.resume();
             });
