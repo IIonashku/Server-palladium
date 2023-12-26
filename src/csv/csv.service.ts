@@ -785,7 +785,9 @@ export class CsvService {
           if (bulkOps.length === 4_000_00) {
             await this.baseModel.bulkWrite(bulkOps).then((result) => {
               deletedCount += result.deletedCount;
+              cursor.resume();
             });
+            cursor.pause();
           }
         })
         .on('end', () => {
