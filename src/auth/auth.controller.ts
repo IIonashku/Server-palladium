@@ -101,7 +101,7 @@ export class AuthController {
   async refreshToken(@Req() req: Request) {
     const tokens: any = req.headers;
     if (await this.refreshService.validate(req, {}))
-      return this.authService.refreshToken(tokens.refreshtoken);
+      return this.authService.refreshToken(tokens.refresh_token);
     else throw new UnauthorizedException();
   }
 
@@ -109,11 +109,17 @@ export class AuthController {
     summary: 'Check route',
     description: 'Route for checking access token',
   })
-  @ApiCreatedResponse({ description: 'Token refreshed' })
+  @ApiCreatedResponse({ description: 'Token valid' })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('JWT-auth')
-  @Post('/check')
-  async checkToken() {
-    return true;
+  @Get('/check')
+  async checkToken(@Req() req: Request) {
+    const tokens: any = req.headers;
+    const user = this.authService.findAccessToken(
+      tokens.authorization.split(' ')[1],
+    );
+    if (user) {
+      return true;
+    } else return false;
   }
 }
