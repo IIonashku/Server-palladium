@@ -38,6 +38,10 @@ export class Analisys {
   @ApiProperty()
   @Prop({ required: true })
   validDataCounter: number;
+
+  @ApiProperty()
+  @Prop({ required: true })
+  nullTypeAndCarrier: number;
 }
 
 export const AnalisysSchema = SchemaFactory.createForClass(Analisys);

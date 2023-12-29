@@ -129,6 +129,7 @@ export class CsvService {
     let duplicateInMongo: number = 0;
     let badCounter = 0;
     let duplicateInBase = 0;
+    let nullTypeAndCarrier = 0;
 
     const model = this.csvModel;
     const modelBase = this.baseModel;
@@ -182,13 +183,16 @@ export class CsvService {
           phoneNumber: row[phoneNumberIndex],
           firstName: row[firstNameIndex],
           lastName: row[lastNameIndex],
-          type: row[typeIndex] ? row[typeIndex].toLowerCase() : undefined,
+          type: row[typeIndex] ? row[typeIndex].toLowerCase() : null,
           carrier: row[carrierIndex] ? row[carrierIndex] : null,
           inBase: false,
           listTag: fileName,
         };
+
         if (phonesSize !== phones.size) {
           data.push(element);
+          if (element.type === null && element.carrier === null)
+            nullTypeAndCarrier++;
           uploadingphones.push(row[phoneNumberIndex]);
           if (data.length === Math.floor(500_000 / numOfFile)) {
             this.numberOfUploadedData += Math.floor(500_000 / numOfFile);
@@ -239,6 +243,7 @@ export class CsvService {
               duplicateInMongo: duplicateInMongo,
               validDataCounter: lenghtOfData,
               duplicateInBase: duplicateInBase,
+              nullTypeAndCarrier: nullTypeAndCarrier,
             });
           })
           .on('error', function (error) {
@@ -424,6 +429,7 @@ export class CsvService {
       const newAnalisys = new this.analisysModel(analisys);
       await newAnalisys.save();
     } catch (e) {
+      console.log(e);
       return 'ERROR';
     }
   }
@@ -543,12 +549,22 @@ export class CsvService {
     const count = await this.csvModel.count(f);
     return count;
   }
-  async getAnalisysValidData(fileName: string) {
+  async getAnalisysValidData(
+    fileName: string,
+    inBase: boolean,
+    nullTypeAndCarrier: boolean,
+  ) {
     const regexp = RegExp(fileName);
     const analis = await this.analisysModel.findOne({
       fileName: { $regex: regexp },
     });
-    const count = analis.validDataCounter;
+    let count = 0;
+    if (analis) {
+      if (inBase && nullTypeAndCarrier) return 0;
+      if (inBase) return analis.duplicateInBase;
+      if (nullTypeAndCarrier) return analis.nullTypeAndCarrier;
+      count = analis.validDataCounter;
+    }
     return count;
   }
 
@@ -825,5 +841,80 @@ export class CsvService {
     const lastName = await this.csvModel.count({ lastName: '\\r' });
 
     return { brokenCarrier: carrier, brokenLastname: lastName };
+  }
+
+  async updateAnalisysCountData() {
+    const tags = await this.analisysModel.find({});
+    const result = 'End';
+    if (tags.length >= 1) {
+      let nullTypeAndCarrierCount = 0;
+      const resultPromise = new Promise((resolve) => {
+        for (let i = 0; i < tags.length; i++) {
+          nullTypeAndCarrierCount = 0;
+
+          const dataCursor = this.csvModel
+            .find({
+              listTag: { $elemMatch: { $regex: RegExp(tags[i].fileName) } },
+            })
+            .cursor();
+          dataCursor
+            .on('data', (data) => {
+              if (data.carrier === null && data.type === null) {
+                nullTypeAndCarrierCount++;
+              }
+            })
+            .on('end', async () => {
+              console.log(nullTypeAndCarrierCount);
+              await this.analisysModel.findOneAndUpdate(
+                {
+                  fileName: tags[i].fileName,
+                },
+                { $set: { nullTypeAndCarrier: nullTypeAndCarrierCount } },
+              );
+            });
+        }
+        resolve('true');
+      });
+      await resultPromise;
+      return result;
+    }
+  }
+
+  async setCountNullTypeAndCarrier() {
+    const dataCursor = this.csvModel.find({}).cursor();
+    const allDataCount = await this.csvModel.count();
+    let csvNullCarrierAndType = 0;
+    let csvInBase = 0;
+    const result = 'Done';
+    const resultPromise = new Promise((resolve) => {
+      dataCursor
+        .on('data', (data) => {
+          if (data.carrier === null && data.type === null) {
+            csvNullCarrierAndType++;
+          }
+          if (data.inBase === true) {
+            csvInBase++;
+          }
+        })
+        .on('end', async () => {
+          await this.analisysModel.updateOne(
+            { fileName: 'DBInfo' },
+            {
+              $set: {
+                validDataCounter: allDataCount,
+                duplicateInMongo: 0,
+                duplicateInBase: csvInBase,
+                badDataCounter: 0,
+                duplicateInFile: 0,
+                nullTypeAndCarrier: csvNullCarrierAndType,
+              },
+            },
+            { upsert: true },
+          );
+          resolve('Done');
+        });
+    });
+    await resultPromise;
+    return result;
   }
 }

@@ -49,9 +49,17 @@ export class CsvController {
   }
 
   @ApiOperation({ summary: 'get list data count' })
-  @Get('/analis/data/count/:fileName')
-  async getAnalisysValidDataLenght(@Param('fileName') fileName: any) {
-    return await this.csvService.getAnalisysValidData(fileName);
+  @Post('/analis/data/count/:fileName')
+  async getAnalisysValidDataLenght(
+    @Param('fileName') fileName: any,
+    @Body('inBase') inBase: boolean,
+    @Body('nullTypeAndCarrier') nullTypeAndCarrier: boolean,
+  ) {
+    return await this.csvService.getAnalisysValidData(
+      fileName,
+      inBase,
+      nullTypeAndCarrier,
+    );
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
@@ -204,6 +212,9 @@ export class CsvController {
                     ? Number(innerResult.duplicateInMongo)
                     : 0,
                   duplicateInBase: innerResult.duplicateInBase,
+                  nullTypeAndCarrier: Number(innerResult.nullTypeAndCarrier)
+                    ? Number(innerResult.nullTypeAndCarrier)
+                    : 0,
                 });
                 if (analis === 'ERROR')
                   result.push({
@@ -382,5 +393,17 @@ export class CsvController {
   @Get('/fix/count/')
   async getBrokenDataLenght() {
     return await this.csvService.getBrokenDataLenght();
+  }
+
+  @ApiOperation({ summary: 'set/update all data analisys' })
+  @Get('analisys/all/set/')
+  async setData() {
+    return await this.csvService.setCountNullTypeAndCarrier();
+  }
+
+  @ApiOperation({ summary: 'set/update all list tags analisys' })
+  @Get('/analisys/tags/set/')
+  async setDataListTag() {
+    return await this.csvService.updateAnalisysCountData();
   }
 }
