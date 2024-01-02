@@ -562,6 +562,7 @@ export class CsvService {
     if (analis) {
       if (inBase && nullTypeAndCarrier) return 0;
       if (inBase) return analis.duplicateInBase;
+      if (!!inBase) return analis.validDataCounter - analis.duplicateInBase;
       if (nullTypeAndCarrier) return analis.nullTypeAndCarrier;
       count = analis.validDataCounter;
     }
@@ -578,7 +579,7 @@ export class CsvService {
 
   async getListTags() {
     const data = await this.analisysModel
-      .find({}, {}, {})
+      .find({ fileName: { $ne: 'DBInfo' } }, {}, {})
       .select(['fileName', 'validDataCounter']);
     const jsonData = JSON.stringify(data);
     return jsonData;
@@ -844,7 +845,7 @@ export class CsvService {
   }
 
   async updateAnalisysCountData() {
-    const tags = await this.analisysModel.find({});
+    const tags = await this.analisysModel.find({ fileName: { $ne: 'DBInfo' } });
     const result = 'End';
     if (tags.length >= 1) {
       let nullTypeAndCarrierCount = 0;
@@ -859,7 +860,10 @@ export class CsvService {
             .cursor();
           dataCursor
             .on('data', (data) => {
-              if (data.carrier === null && data.type === null) {
+              if (
+                (data.carrier === null || data.carrier === undefined) &&
+                (data.type === null || data.type === undefined)
+              ) {
                 nullTypeAndCarrierCount++;
               }
             })
@@ -889,7 +893,10 @@ export class CsvService {
     const resultPromise = new Promise((resolve) => {
       dataCursor
         .on('data', (data) => {
-          if (data.carrier === null && data.type === null) {
+          if (
+            (data.carrier === null || data.carrier === undefined) &&
+            (data.type === null || data.type === undefined)
+          ) {
             csvNullCarrierAndType++;
           }
           if (data.inBase === true) {
@@ -924,15 +931,5 @@ export class CsvService {
     });
     if (analisys) return true;
     else return false;
-  }
-
-  async clearBasesListTag() {
-    const result = await this.baseModel.updateMany(
-      {},
-      { $unset: { listTag: [] } },
-      { multi: true },
-    );
-    console.log(result);
-    return 'Done';
   }
 }

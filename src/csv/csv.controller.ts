@@ -413,10 +413,4 @@ export class CsvController {
     const exist = await this.csvService.checkAnalisys(fileName);
     return exist;
   }
-
-  @ApiOperation({ summary: 'Clear list tag field in base' })
-  @Get()
-  async clearListTagsFromBase() {
-    return this.csvService.clearBasesListTag();
-  }
 }
