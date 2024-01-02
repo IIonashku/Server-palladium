@@ -35,6 +35,8 @@ export class Basecsv {
   @ApiProperty()
   @Prop({ type: String, enum: type, required: false })
   type: type;
+  @Prop()
+  listTag: string[];
 }
 
 export const BasecsvSchema = SchemaFactory.createForClass(Basecsv);

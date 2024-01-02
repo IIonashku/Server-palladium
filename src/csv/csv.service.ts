@@ -917,4 +917,22 @@ export class CsvService {
     await resultPromise;
     return result;
   }
+
+  async checkAnalisys(fileName: string) {
+    const analisys = await this.analisysModel.findOne({
+      fileName: { $regex: RegExp(fileName) },
+    });
+    if (analisys) return true;
+    else return false;
+  }
+
+  async clearBasesListTag() {
+    const result = await this.baseModel.updateMany(
+      {},
+      { $unset: { listTag: [] } },
+      { multi: true },
+    );
+    console.log(result);
+    return 'Done';
+  }
 }

@@ -406,4 +406,17 @@ export class CsvController {
   async setDataListTag() {
     return await this.csvService.updateAnalisysCountData();
   }
+
+  @ApiOperation({ summary: 'Check if exist specific analisys' })
+  @Post('/analisys/check/')
+  async getAnalisys(@Body('fileName') fileName: string) {
+    const exist = await this.csvService.checkAnalisys(fileName);
+    return exist;
+  }
+
+  @ApiOperation({ summary: 'Clear list tag field in base' })
+  @Get()
+  async clearListTagsFromBase() {
+    return this.csvService.clearBasesListTag();
+  }
 }
