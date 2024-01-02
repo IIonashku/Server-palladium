@@ -849,33 +849,35 @@ export class CsvService {
     const result = 'End';
     if (tags.length >= 1) {
       let nullTypeAndCarrierCount = 0;
-      const resultPromise = new Promise((resolve) => {
+      const resultPromise = new Promise(async (resolve) => {
         for (let i = 0; i < tags.length; i++) {
           nullTypeAndCarrierCount = 0;
-
-          const dataCursor = this.csvModel
-            .find({
-              listTag: { $elemMatch: { $regex: RegExp(tags[i].fileName) } },
-            })
-            .cursor();
-          dataCursor
-            .on('data', (data) => {
-              if (
-                (data.carrier === null || data.carrier === undefined) &&
-                (data.type === null || data.type === undefined)
-              ) {
-                nullTypeAndCarrierCount++;
-              }
-            })
-            .on('end', async () => {
-              console.log(nullTypeAndCarrierCount);
-              await this.analisysModel.findOneAndUpdate(
-                {
-                  fileName: tags[i].fileName,
-                },
-                { $set: { nullTypeAndCarrier: nullTypeAndCarrierCount } },
-              );
-            });
+          const resultTag = new Promise((resolve) => {
+            const dataCursor = this.csvModel
+              .find({
+                listTag: { $elemMatch: { $regex: RegExp(tags[i].fileName) } },
+              })
+              .cursor();
+            dataCursor
+              .on('data', (data) => {
+                if (
+                  (data.carrier === null || data.carrier === undefined) &&
+                  (data.type === null || data.type === undefined)
+                ) {
+                  nullTypeAndCarrierCount++;
+                }
+              })
+              .on('end', async () => {
+                await this.analisysModel.findOneAndUpdate(
+                  {
+                    fileName: tags[i].fileName,
+                  },
+                  { $set: { nullTypeAndCarrier: nullTypeAndCarrierCount } },
+                );
+                resolve('End');
+              });
+          });
+          await resultTag;
         }
         resolve('true');
       });
