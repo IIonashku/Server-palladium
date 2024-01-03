@@ -183,7 +183,7 @@ export class CsvService {
           phoneNumber: row[phoneNumberIndex],
           firstName: row[firstNameIndex],
           lastName: row[lastNameIndex],
-          type: row[typeIndex] ? row[typeIndex].toLowerCase() : null,
+          type: row[typeIndex] ? row[typeIndex].toLowerCase() : undefined,
           carrier: row[carrierIndex] ? row[carrierIndex] : null,
           inBase: false,
           listTag: fileName,
@@ -191,7 +191,7 @@ export class CsvService {
 
         if (phonesSize !== phones.size) {
           data.push(element);
-          if (element.type === null && element.carrier === null)
+          if (element.type === undefined && element.carrier === null)
             nullTypeAndCarrier++;
           uploadingphones.push(row[phoneNumberIndex]);
           if (data.length === Math.floor(500_000 / numOfFile)) {
@@ -229,8 +229,10 @@ export class CsvService {
           .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
+            console.log(data);
             await saver(data, uploadingphones, fileName, model, modelBase).then(
               (res) => {
+                console.log(res);
                 duplicateInMongo += res.duplicateInMongo;
                 duplicateInBase += res.duplicateInBase;
               },
