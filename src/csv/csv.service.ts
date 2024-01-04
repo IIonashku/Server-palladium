@@ -680,7 +680,7 @@ export class CsvService {
               let type = res.data[i].number_type;
               let carrier;
               if (res.data[i].country_iso2 === 'CA') {
-                type = 'Canadian';
+                type = 'canadian';
                 carrier = 'Canadian';
               } else {
                 if (type === 0) {

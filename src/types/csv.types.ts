@@ -3,4 +3,5 @@ export enum type {
   landline = 'landline',
   unknown = 'unknown',
   invalid = 'invalid',
+  canadian = 'canadian',
 }
