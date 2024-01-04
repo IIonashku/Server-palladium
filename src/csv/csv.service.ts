@@ -670,63 +670,68 @@ export class CsvService {
       const bulkOps = [];
 
       const resultProcess = new Promise(async (resolve, reject) => {
-        await this.httpService.axiosRef
-          .post(
-            'https://i.textyou.online/campaign/nl/v1/enum/lookup',
-            { product: 'Mobius MNP', phone_numbers: phoneNumbers },
-            {
-              headers: {
-                Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
-                'Content-Type': 'application/json',
+        for (let i = 0; i < Math.ceil(phoneNumbers.length / 1000); i++) {
+          await this.httpService.axiosRef
+            .post(
+              'https://i.textyou.online/campaign/nl/v1/enum/lookup',
+              {
+                product: 'Mobius MNP',
+                phone_numbers: phoneNumbers.slice(i * 1000, i * 1000 + 1000),
               },
-            },
-          )
-          .then(async (res) => {
-            for (let i = 0; i < res.data.length; i++) {
-              let type = res.data[i].number_type;
-              let carrier;
-              if (res.data[i].country_iso2 === 'CA') {
-                type = 'canadian';
-                carrier = 'Canadian';
-              } else {
-                if (type === 0) {
-                  forReturn.unknown++;
-                  type = 'unknow';
-                } else if (type === 1) {
-                  forReturn.invalid++;
-                  type = 'invalid';
-                } else if (type === 2) {
-                  forReturn.landline++;
-                  type = 'landline';
-                } else if (type === 3) {
-                  forReturn.mobile++;
-                  type = 'mobile';
+              {
+                headers: {
+                  Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
+                  'Content-Type': 'application/json',
+                },
+              },
+            )
+            .then(async (res) => {
+              for (let i = 0; i < res.data.length; i++) {
+                let type = res.data[i].number_type;
+                let carrier;
+                if (res.data[i].country_iso2 === 'CA') {
+                  type = 'canadian';
+                  carrier = 'Canadian';
+                } else {
+                  if (type === 0) {
+                    forReturn.unknown++;
+                    type = 'unknow';
+                  } else if (type === 1) {
+                    forReturn.invalid++;
+                    type = 'invalid';
+                  } else if (type === 2) {
+                    forReturn.landline++;
+                    type = 'landline';
+                  } else if (type === 3) {
+                    forReturn.mobile++;
+                    type = 'mobile';
+                  }
+                  carrier = res.data[i].operator_name
+                    ? res.data[i].operator_name
+                    : 'unknown';
                 }
-                carrier = res.data[i].operator_name
-                  ? res.data[i].operator_name
-                  : 'unknown';
+
+                const filter = { phoneNumber: res.data[i].phone_number };
+
+                const update = { $set: { carrier: carrier, type: type } };
+
+                bulkOps.push({ updateOne: { filter, update, upsert: true } });
               }
-
-              const filter = { phoneNumber: res.data[i].phone_number };
-
-              const update = { $set: { carrier: carrier, type: type } };
-
-              bulkOps.push({ updateOne: { filter, update, upsert: true } });
-            }
-            try {
-              await this.baseModel.bulkWrite(bulkOps);
-              await this.csvModel.bulkWrite(bulkOps);
-              resolve(forReturn);
-            } catch (e) {
-              console.log(e);
-              reject(e);
-            }
-          })
-          .catch((err) => {
-            console.log(err);
-            reject(err);
-            throw new HttpException(err, 500);
-          });
+              try {
+                await this.baseModel.bulkWrite(bulkOps);
+                await this.csvModel.bulkWrite(bulkOps);
+                resolve(forReturn);
+              } catch (e) {
+                console.log(e);
+                reject(e);
+              }
+            })
+            .catch((err) => {
+              console.log(err);
+              reject(err);
+              throw new HttpException(err, 500);
+            });
+        }
       });
       await resultProcess;
       return forReturn;
