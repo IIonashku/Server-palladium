@@ -1,5 +1,6 @@
 import {
   HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -945,5 +946,14 @@ export class CsvService {
     });
     if (analisys) return true;
     else return false;
+  }
+
+  async getSpecificTag(fileName: string) {
+    const analis = await this.analisysModel.find({ fileName: fileName });
+    if (analis) {
+      return analis;
+    } else {
+      throw new HttpException('File not found', HttpStatus.BAD_REQUEST);
+    }
   }
 }
