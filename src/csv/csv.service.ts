@@ -229,10 +229,8 @@ export class CsvService {
           .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
-            console.log(data);
             await saver(data, uploadingphones, fileName, model, modelBase).then(
               (res) => {
-                console.log(res);
                 duplicateInMongo += res.duplicateInMongo;
                 duplicateInBase += res.duplicateInBase;
               },
@@ -683,7 +681,6 @@ export class CsvService {
               let carrier;
               if (res.data[i].country_iso2 === 'CA') {
                 type = 'Canadian';
-
                 carrier = 'Canadian';
               } else {
                 if (type === 0) {
