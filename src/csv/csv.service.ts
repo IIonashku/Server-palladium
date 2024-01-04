@@ -663,10 +663,9 @@ export class CsvService {
       unknown: 0,
       landline: 0,
       mobile: 0,
-      invalide: 0,
+      invalid: 0,
       canadian: 0,
     };
-    console.log(phoneNumbers);
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
 
@@ -715,8 +714,8 @@ export class CsvService {
               bulkOps.push({ updateOne: { filter, update, upsert: true } });
             }
             try {
-              console.log(await this.baseModel.bulkWrite(bulkOps));
-              console.log(await this.csvModel.bulkWrite(bulkOps));
+              await this.baseModel.bulkWrite(bulkOps);
+              await this.csvModel.bulkWrite(bulkOps);
               resolve(forReturn);
             } catch (e) {
               console.log(e);
