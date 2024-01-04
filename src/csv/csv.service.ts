@@ -659,7 +659,13 @@ export class CsvService {
     }
   }
   async detectArrayCarrier(phoneNumbers: string[]) {
-    const forReturn: any = { unknown: 0, landline: 0, mobile: 0 };
+    const forReturn: any = {
+      unknown: 0,
+      landline: 0,
+      mobile: 0,
+      invalide: 0,
+      canadian: 0,
+    };
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
 
@@ -687,6 +693,7 @@ export class CsvService {
                   forReturn.unknown++;
                   type = 'unknow';
                 } else if (type === 1) {
+                  forReturn.invalid++;
                   type = 'invalid';
                 } else if (type === 2) {
                   forReturn.landline++;
@@ -707,8 +714,8 @@ export class CsvService {
               bulkOps.push({ updateOne: { filter, update, upsert: true } });
             }
             try {
-              await this.baseModel.bulkWrite(bulkOps);
-              await this.csvModel.bulkWrite(bulkOps);
+              console.log(await this.baseModel.bulkWrite(bulkOps));
+              console.log(await this.csvModel.bulkWrite(bulkOps));
               resolve(forReturn);
             } catch (e) {
               console.log(e);
