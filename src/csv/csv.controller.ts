@@ -9,6 +9,7 @@ import {
   InternalServerErrorException,
   Param,
   Post,
+  Req,
   Res,
   UnsupportedMediaTypeException,
   UploadedFiles,
@@ -29,6 +30,7 @@ import { LimitAndFilters, NumberString } from './swagger.csv.dto';
 import phone from 'phone';
 import { Response } from 'express';
 import { createReadStream } from 'node:fs';
+import { JwtService } from '@nestjs/jwt';
 
 let readingStatus: string = 'Not reading';
 export let numOfFile: number = 0;
@@ -40,7 +42,10 @@ export const fileReaded = (): void => {
 @ApiBearerAuth('JWT-auth')
 @Controller('csv')
 export class CsvController {
-  constructor(private readonly csvService: CsvService) {}
+  constructor(
+    private readonly csvService: CsvService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @ApiOperation({ summary: 'get data count' })
   @Post('/count/')
@@ -397,20 +402,47 @@ export class CsvController {
 
   @ApiOperation({ summary: 'set/update all data analisys' })
   @Get('analisys/all/set/')
-  async setData() {
-    return await this.csvService.setCountNullTypeAndCarrier();
+  async setData(@Req() req: Request) {
+    const token: any = req.headers;
+    const payload: any = this.jwtService.decode(
+      token.authorization.split(' ')[1],
+    );
+    if (payload.role === 'ADMIN') {
+      return await this.csvService.setCountNullTypeAndCarrier();
+    } else {
+      throw new HttpException(
+        'Only admin user can use this updater',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
   }
 
   @ApiOperation({ summary: 'set/update all list tags analisys' })
   @Get('/analisys/tags/set/')
-  async setDataListTag() {
-    return await this.csvService.updateAnalisysCountData();
+  async setDataListTag(@Req() req: Request) {
+    const token: any = req.headers;
+    const payload: any = this.jwtService.decode(
+      token.authorization.split(' ')[1],
+    );
+    if (payload.role === 'ADMIN') {
+      return await this.csvService.updateAnalisysCountData();
+    } else {
+      throw new HttpException(
+        'Only admin user can use this updater',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
   }
 
   @ApiOperation({ summary: 'Check if exist specific analisys' })
   @Post('/analisys/check/')
   async getAnalisys(@Body('fileName') fileName: string) {
-    const exist = await this.csvService.checkAnalisys(fileName);
-    return exist;
+    return await this.csvService.checkAnalisys(fileName);
+  }
+
+  @ApiOperation({ summary: 'Get specific list tag' })
+  @Get('/analis/get/:fileName')
+  async getSpecificTag(@Param('fileName') fileName: string) {
+    return this.csvService.getSpecificTag(fileName);
   }
 }
