@@ -723,6 +723,7 @@ export class CsvService {
             }
           })
           .catch((err) => {
+            console.log(err);
             reject(err);
             throw new HttpException(err, 500);
           });
