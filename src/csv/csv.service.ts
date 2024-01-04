@@ -666,6 +666,7 @@ export class CsvService {
       invalide: 0,
       canadian: 0,
     };
+    console.log(phoneNumbers);
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
 
