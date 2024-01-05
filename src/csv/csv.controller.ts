@@ -443,6 +443,12 @@ export class CsvController {
   @ApiOperation({ summary: 'Get specific list tag' })
   @Get('/analis/get/:fileName')
   async getSpecificTag(@Param('fileName') fileName: string) {
-    return this.csvService.getSpecificTag(fileName);
+    return await this.csvService.getSpecificTag(fileName);
+  }
+
+  @ApiOperation({ summary: 'Find and update canadian numbers' })
+  @Get('/data/canadian/')
+  async updateCanadian() {
+    return await this.csvService.checkCanadianNumber();
   }
 }

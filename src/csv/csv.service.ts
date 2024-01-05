@@ -600,10 +600,39 @@ export class CsvService {
 
   async deleteDataOfAnalisys(fileName: string) {
     const reg = RegExp(fileName);
+    const deletedNull = await this.csvModel.deleteMany({
+      listTag: { $elemMatch: { $regex: reg } },
+      carrier: { $in: [null, undefined] },
+      type: { $in: [null, undefined] },
+    });
     const deleted = await this.csvModel.deleteMany({
       listTag: { $elemMatch: { $regex: reg } },
     });
-    return deleted.deletedCount;
+    const DBInfo = await this.analisysModel.findOne({ fileName: 'DBInfo' });
+    try {
+      await this.analisysModel.findOneAndUpdate(
+        {
+          fileName: 'DBInfo',
+        },
+        {
+          $set: {
+            validDataCounter: DBInfo.validDataCounter - deleted.deletedCount,
+            nullTypeAndCarrier:
+              DBInfo.nullTypeAndCarrier - deletedNull.deletedCount,
+          },
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      await this.analisysModel.updateOne(
+        {
+          fileName: 'DBInfo',
+        },
+        { $set: { validDataCounter: 0, nullTypeAndCarrier: 0 } },
+      );
+    }
+
+    return { deletedCount: deleted.deletedCount };
   }
 
   async detectCarrier(phoneNumber: string) {
@@ -955,5 +984,40 @@ export class CsvService {
     } else {
       throw new HttpException('File not found', HttpStatus.BAD_REQUEST);
     }
+  }
+
+  async checkCanadianNumber() {
+    const cursor = this.csvModel.find({}).cursor();
+    const bulkOps = [];
+    let canadian = 0;
+    const resultPromise = new Promise(async (resolve) => {
+      cursor
+        .on('data', async (data) => {
+          const detail = phone(data.phoneNumber);
+          console.log(data.carrier);
+          if (detail.countryIso2 === 'CA' && data.carrier !== 'canadian') {
+            const filter = { phoneNumber: data.phoneNumber };
+
+            const update = { $set: { carrier: 'canadian', type: 'invalid' } };
+
+            bulkOps.push({ updateOne: { filter, update, upsert: true } });
+            if (bulkOps.length === 1_000_00)
+              await this.csvModel.bulkWrite(bulkOps).then((data) => {
+                canadian += data.modifiedCount;
+              });
+          }
+        })
+        .on('end', async () => {
+          await this.csvModel.bulkWrite(bulkOps).then((data) => {
+            canadian += data.modifiedCount;
+          });
+
+          console.log('done');
+
+          resolve(canadian);
+        });
+    });
+    await resultPromise;
+    return canadian;
   }
 }
