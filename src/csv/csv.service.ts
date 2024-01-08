@@ -698,9 +698,10 @@ export class CsvService {
     };
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
-
       const resultProcess = new Promise(async (resolve, reject) => {
         for (let i = 0; i < Math.ceil(phoneNumbers.length / 999); i++) {
+          console.log(phoneNumbers.slice(i * 999, i * 999 + 999));
+
           await this.httpService.axiosRef
             .post(
               'https://i.textyou.online/campaign/nl/v1/enum/lookup',
