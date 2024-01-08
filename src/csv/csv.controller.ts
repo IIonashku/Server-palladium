@@ -59,11 +59,13 @@ export class CsvController {
     @Param('fileName') fileName: any,
     @Body('inBase') inBase: boolean,
     @Body('nullTypeAndCarrier') nullTypeAndCarrier: boolean,
+    @Body('carrier') carrier: string,
   ) {
     return await this.csvService.getAnalisysValidData(
       fileName,
       inBase,
       nullTypeAndCarrier,
+      carrier,
     );
   }
 
@@ -219,6 +221,15 @@ export class CsvController {
                   duplicateInBase: innerResult.duplicateInBase,
                   nullTypeAndCarrier: Number(innerResult.nullTypeAndCarrier)
                     ? Number(innerResult.nullTypeAndCarrier)
+                    : 0,
+                  ATTCarrier: Number(innerResult.ATTCarrier)
+                    ? Number(innerResult.ATTCarrier)
+                    : 0,
+                  TMobileCarrier: Number(innerResult.ATTCarrier)
+                    ? Number(innerResult.ATTCarrier)
+                    : 0,
+                  verizonCarrier: Number(innerResult.ATTCarrier)
+                    ? Number(innerResult.ATTCarrier)
                     : 0,
                 });
                 if (analis === 'ERROR')

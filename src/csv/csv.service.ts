@@ -17,6 +17,7 @@ import { HttpService } from '@nestjs/axios';
 import { fileReaded, numOfFile } from './csv.controller';
 import * as fsWrite from 'node:fs/promises';
 import { Export } from './export/export.schema';
+import { availableCarrier } from 'src/types/csv.types';
 
 type csvData = {
   phoneNumber: string;
@@ -131,6 +132,9 @@ export class CsvService {
     let badCounter = 0;
     let duplicateInBase = 0;
     let nullTypeAndCarrier = 0;
+    let TMobileCount = 0;
+    let ATTCount = 0;
+    let verisonCount = 0;
 
     const model = this.csvModel;
     const modelBase = this.baseModel;
@@ -178,6 +182,7 @@ export class CsvService {
           1,
           validPhone.phoneNumber.length,
         );
+
         const phonesSize = phones.size;
         phones.add(row[phoneNumberIndex]);
         const element: CsvInsertDto = {
@@ -191,6 +196,17 @@ export class CsvService {
         };
 
         if (phonesSize !== phones.size) {
+          if (
+            element.carrier === 'T-Mobile' ||
+            element.carrier === 'Metro by T-Mobile'
+          )
+            TMobileCount++;
+          else if (
+            element.carrier === 'Verizon' ||
+            element.carrier === 'Verizon Wireless'
+          )
+            verisonCount++;
+          else if (element.carrier === 'AT&T') ATTCount++;
           data.push(element);
           if (element.type === undefined && element.carrier === null)
             nullTypeAndCarrier++;
@@ -245,6 +261,9 @@ export class CsvService {
               validDataCounter: lenghtOfData,
               duplicateInBase: duplicateInBase,
               nullTypeAndCarrier: nullTypeAndCarrier,
+              verizonCarrier: verisonCount,
+              ATTCarrier: ATTCount,
+              TMobileCarrier: TMobileCount,
             });
           })
           .on('error', function (error) {
@@ -547,12 +566,14 @@ export class CsvService {
       if (filters.inBase != undefined) f.inBase = filters.inBase;
     }
     const count = await this.csvModel.count(f);
-    return count;
+    const jsonData = JSON.stringify(count);
+    return jsonData;
   }
   async getAnalisysValidData(
     fileName: string,
-    inBase: boolean,
-    nullTypeAndCarrier: boolean,
+    inBase: boolean | undefined,
+    nullTypeAndCarrier: boolean | undefined,
+    carrier: string | undefined,
   ) {
     const regexp = RegExp(fileName);
     const analis = await this.analisysModel.findOne({
@@ -560,10 +581,19 @@ export class CsvService {
     });
     let count = 0;
     if (analis) {
-      if (inBase && nullTypeAndCarrier) return 0;
       if (inBase) return analis.duplicateInBase;
       if (!!inBase) return analis.validDataCounter - analis.duplicateInBase;
       if (nullTypeAndCarrier) return analis.nullTypeAndCarrier;
+      if (
+        carrier === availableCarrier.MetroByTMoblie ||
+        carrier === availableCarrier.TMobile
+      )
+        return analis.TMobileCarrier;
+      if (carrier === availableCarrier.verizon) return analis.verisonCarrier;
+      if (carrier === availableCarrier.ATT) return analis.ATTCarrier;
+
+      if (inBase && nullTypeAndCarrier) return 0;
+
       count = analis.validDataCounter;
     }
     return count;
@@ -897,9 +927,15 @@ export class CsvService {
     const result = 'End';
     if (tags.length >= 1) {
       let nullTypeAndCarrierCount = 0;
+      let ATTCount = 0;
+      let TMobileCount = 0;
+      let verisonCount = 0;
       const resultPromise = new Promise(async (resolve) => {
         for (let i = 0; i < tags.length; i++) {
           nullTypeAndCarrierCount = 0;
+          ATTCount = 0;
+          TMobileCount = 0;
+          verisonCount = 0;
           const resultTag = new Promise((resolve) => {
             const dataCursor = this.csvModel
               .find({
@@ -913,14 +949,31 @@ export class CsvService {
                   (data.type === null || data.type === undefined)
                 ) {
                   nullTypeAndCarrierCount++;
-                }
+                } else if (
+                  data.carrier === 'T-Mobile' ||
+                  data.carrier === 'Metro by T-Mobile'
+                )
+                  TMobileCount++;
+                else if (data.carrier === 'AT&T') ATTCount++;
+                else if (
+                  data.carrier === 'Verizon' ||
+                  data.carrier === 'Verizon Wireles'
+                )
+                  verisonCount++;
               })
               .on('end', async () => {
                 await this.analisysModel.findOneAndUpdate(
                   {
                     fileName: tags[i].fileName,
                   },
-                  { $set: { nullTypeAndCarrier: nullTypeAndCarrierCount } },
+                  {
+                    $set: {
+                      nullTypeAndCarrier: nullTypeAndCarrierCount,
+                      ATTCarrier: ATTCount,
+                      TMobileCarrier: TMobileCount,
+                      verisonCarrier: verisonCount,
+                    },
+                  },
                 );
                 resolve('End');
               });
@@ -939,6 +992,9 @@ export class CsvService {
     const allDataCount = await this.csvModel.count();
     let csvNullCarrierAndType = 0;
     let csvInBase = 0;
+    let ATTCount = 0;
+    let TMobileCount = 0;
+    let verizonCount = 0;
     const result = 'Done';
     const resultPromise = new Promise((resolve) => {
       dataCursor
@@ -948,7 +1004,17 @@ export class CsvService {
             (data.type === null || data.type === undefined)
           ) {
             csvNullCarrierAndType++;
-          }
+          } else if (
+            data.carrier === 'T-Mobile' ||
+            data.carrier === 'Metro by T-Mobile'
+          )
+            TMobileCount++;
+          else if (data.carrier === 'AT&T') ATTCount++;
+          else if (
+            data.carrier === 'Verizon' ||
+            data.carrier === 'Verizon Wireles'
+          )
+            verizonCount++;
           if (data.inBase === true) {
             csvInBase++;
           }
@@ -964,6 +1030,9 @@ export class CsvService {
                 badDataCounter: 0,
                 duplicateInFile: 0,
                 nullTypeAndCarrier: csvNullCarrierAndType,
+                ATTCarrier: ATTCount,
+                TMobileCarrier: TMobileCount,
+                verisonCarrier: verizonCount,
               },
             },
             { upsert: true },

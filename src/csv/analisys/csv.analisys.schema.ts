@@ -42,6 +42,18 @@ export class Analisys {
   @ApiProperty()
   @Prop({ required: true })
   nullTypeAndCarrier: number;
+
+  @ApiProperty()
+  @Prop({ required: false })
+  ATTCarrier: number;
+
+  @ApiProperty()
+  @Prop({ required: false })
+  TMobileCarrier: number;
+
+  @ApiProperty()
+  @Prop({ required: false })
+  verisonCarrier: number;
 }
 
 export const AnalisysSchema = SchemaFactory.createForClass(Analisys);
