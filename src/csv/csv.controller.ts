@@ -26,7 +26,7 @@ import { CsvService } from './csv.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
-import { LimitAndFilters, NumberString } from './swagger.csv.dto';
+import { LimitAndFilters } from './swagger.csv.dto';
 import phone from 'phone';
 import { Response } from 'express';
 import { createReadStream } from 'node:fs';
@@ -353,11 +353,11 @@ export class CsvController {
   }
 
   @ApiOperation({ summary: 'check phone number`s carrier and type' })
-  @ApiBody({ type: NumberString })
+  @ApiBody({})
   @Post('/check/carrier/')
-  async checkArrayCarrier(@Body('phoneNumber') phoneNumber: any[]) {
+  async checkArrayCarrier(@Body('filters') filters: any) {
     try {
-      const result = await this.csvService.detectArrayCarrier(phoneNumber);
+      const result = await this.csvService.detectArrayCarrier(filters);
       return result;
     } catch (e) {
       throw new HttpException(e, 500);

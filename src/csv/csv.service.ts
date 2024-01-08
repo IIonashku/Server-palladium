@@ -460,8 +460,7 @@ export class CsvService {
     const data = await this.csvModel
       .find(f, {}, { skip: skips, limit: limits })
       .select(displayString);
-    const jsonData = JSON.stringify(data);
-    return jsonData;
+    return data;
   }
 
   async exportData(
@@ -688,7 +687,7 @@ export class CsvService {
       return forReturn;
     }
   }
-  async detectArrayCarrier(phoneNumbers: string[]) {
+  async detectArrayCarrier(filters: allFilter) {
     const forReturn: any = {
       unknown: 0,
       landline: 0,
@@ -696,18 +695,24 @@ export class CsvService {
       invalid: 0,
       canadian: 0,
     };
+    const phoneNumbers: string[] = [];
+    const nullTypeAndCarrierData = await this.getData(0, 100000, filters, []);
+    console.log(nullTypeAndCarrierData);
+    for (let i = 0; i < nullTypeAndCarrierData.length; i++) {
+      phoneNumbers.push(nullTypeAndCarrierData[i].phoneNumber);
+    }
     if (phoneNumbers.length > 0) {
       const bulkOps = [];
       const resultProcess = new Promise(async (resolve, reject) => {
-        for (let i = 0; i < Math.ceil(phoneNumbers.length / 999); i++) {
-          console.log(phoneNumbers.slice(i * 999, i * 999 + 999));
+        for (let i = 0; i < Math.ceil(phoneNumbers.length / 1000); i++) {
+          console.log(phoneNumbers.slice(i * 1000, i * 1000 + 1000));
 
           await this.httpService.axiosRef
             .post(
               'https://i.textyou.online/campaign/nl/v1/enum/lookup',
               {
                 product: 'Mobius MNP',
-                phone_numbers: phoneNumbers.slice(i * 999, i * 999 + 999),
+                phone_numbers: phoneNumbers.slice(i * 1000, i * 1000 + 1000),
               },
               {
                 headers: {
