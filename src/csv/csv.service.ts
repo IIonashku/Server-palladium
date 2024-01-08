@@ -700,13 +700,13 @@ export class CsvService {
       const bulkOps = [];
 
       const resultProcess = new Promise(async (resolve, reject) => {
-        for (let i = 0; i < Math.ceil(phoneNumbers.length / 1000); i++) {
+        for (let i = 0; i < Math.ceil(phoneNumbers.length / 999); i++) {
           await this.httpService.axiosRef
             .post(
               'https://i.textyou.online/campaign/nl/v1/enum/lookup',
               {
                 product: 'Mobius MNP',
-                phone_numbers: phoneNumbers.slice(i * 1000, i * 1000 + 1000),
+                phone_numbers: phoneNumbers.slice(i * 999, i * 999 + 999),
               },
               {
                 headers: {
