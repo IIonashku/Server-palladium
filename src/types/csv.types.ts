@@ -1,4 +1,4 @@
-export enum type {
+export enum deviceType {
   mobile = 'mobile',
   landline = 'landline',
   unknown = 'unknown',

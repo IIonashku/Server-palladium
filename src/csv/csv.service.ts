@@ -17,7 +17,7 @@ import { HttpService } from '@nestjs/axios';
 import { fileReaded, numOfFile } from './csv.controller';
 import * as fsWrite from 'node:fs/promises';
 import { Export } from './export/export.schema';
-import { availableCarrier } from 'src/types/csv.types';
+import { availableCarrier, deviceType } from 'src/types/csv.types';
 
 type csvData = {
   phoneNumber: string;
@@ -727,7 +727,6 @@ export class CsvService {
     };
     const phoneNumbers: string[] = [];
     const nullTypeAndCarrierData = await this.getData(0, 100000, filters, []);
-    console.log(nullTypeAndCarrierData);
     for (let i = 0; i < nullTypeAndCarrierData.length; i++) {
       phoneNumbers.push(nullTypeAndCarrierData[i].phoneNumber);
     }
@@ -735,14 +734,15 @@ export class CsvService {
       const bulkOps = [];
       const resultProcess = new Promise(async (resolve, reject) => {
         for (let i = 0; i < Math.ceil(phoneNumbers.length / 1000); i++) {
-          console.log(phoneNumbers.slice(i * 1000, i * 1000 + 1000));
-
+          let end = 0;
+          if ((i + 1) * 1000 <= phoneNumbers.length) end = (i + 1) * 1000;
+          else end = phoneNumbers.length;
           await this.httpService.axiosRef
             .post(
               'https://i.textyou.online/campaign/nl/v1/enum/lookup',
               {
                 product: 'Mobius MNP',
-                phone_numbers: phoneNumbers.slice(i * 1000, i * 1000 + 1000),
+                phone_numbers: phoneNumbers.slice(i * 1000, end),
               },
               {
                 headers: {
@@ -757,25 +757,25 @@ export class CsvService {
                 let type = res.data[i].number_type;
                 let carrier;
                 if (res.data[i].country_iso2 === 'CA') {
-                  type = 'canadian';
+                  type = deviceType.invalid;
                   carrier = 'Canadian';
                 } else {
                   if (type === 0) {
                     forReturn.unknown++;
-                    type = 'unknow';
+                    type = deviceType.unknown;
                   } else if (type === 1) {
                     forReturn.invalid++;
-                    type = 'invalid';
+                    type = deviceType.invalid;
                   } else if (type === 2) {
                     forReturn.landline++;
-                    type = 'landline';
+                    type = deviceType.landline;
                   } else if (type === 3) {
                     forReturn.mobile++;
-                    type = 'mobile';
+                    type = deviceType.mobile;
                   }
                   carrier = res.data[i].operator_name
                     ? res.data[i].operator_name
-                    : 'unknown';
+                    : deviceType.unknown;
                 }
 
                 const filter = { phoneNumber: res.data[i].phone_number };
@@ -1074,7 +1074,9 @@ export class CsvService {
           if (detail.countryIso2 === 'CA' && data.carrier !== 'canadian') {
             const filter = { phoneNumber: data.phoneNumber };
 
-            const update = { $set: { carrier: 'canadian', type: 'invalid' } };
+            const update = {
+              $set: { carrier: 'canadian', type: deviceType.invalid },
+            };
 
             bulkOps.push({ updateOne: { filter, update, upsert: true } });
             if (bulkOps.length === 1_000_00)
