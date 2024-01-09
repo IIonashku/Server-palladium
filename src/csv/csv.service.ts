@@ -748,6 +748,7 @@ export class CsvService {
                 headers: {
                   Authorization: 'Bearer ' + process.env.ITEXTYOU_API_KEY,
                   'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
                 },
               },
             )
