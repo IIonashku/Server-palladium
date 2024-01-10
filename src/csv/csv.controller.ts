@@ -47,6 +47,8 @@ export class CsvController {
     private readonly jwtService: JwtService,
   ) {}
 
+  private numFileExporting: number = 0;
+
   @ApiOperation({ summary: 'get data count' })
   @Post('/count/')
   async getCsvDataLenght(@Body('filters') filters?: any) {
@@ -98,7 +100,9 @@ export class CsvController {
     @Body('displayStrings') displayStrings: string[],
     @Param('fileName') fileName: string,
   ) {
+    this.numFileExporting++;
     await this.csvService.exportData(filters, displayStrings, fileName);
+    this.numFileExporting--;
     return true;
   }
 
@@ -133,31 +137,36 @@ export class CsvController {
     if (options.options.skips < 0 && options.options.limits < 0) {
       throw new BadRequestException('Options not correct');
     }
-
-    const response = await this.csvService.getAnalisysData(
+    return await this.csvService.getAnalisysData(
       options.options.skips,
       options.options.limits,
     );
-    return response;
   }
 
   @ApiOperation({ summary: 'Get all List tag for front-end' })
   @Post('/analisys/tags')
   async getListTags() {
-    const response = await this.csvService.getListTags();
-    return response;
+    return await this.csvService.getListTags();
   }
 
   @Public()
   @Get('check/reading')
   isReading() {
-    const data = this.csvService.numberOfUploadedData;
-    const lines = this.csvService.numberOfData;
     return {
       status: readingStatus,
-      uploadedData: data,
-      lines: lines,
+      uploadedData: this.csvService.numberOfUploadedData,
+      lines: this.csvService.numberOfData,
       numOfFile: numOfFile,
+    };
+  }
+
+  @Public()
+  @Get('check/export/reading')
+  isExporting() {
+    return {
+      exportedData: this.csvService.numberOfExportFile,
+      dataLimit: this.csvService.numberOfExportFileLimit,
+      fileExporting: this.numFileExporting,
     };
   }
 

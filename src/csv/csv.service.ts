@@ -42,6 +42,8 @@ type optionalFilter = Partial<allFilter>;
 export class CsvService {
   public numberOfUploadedData: number = 0;
   public numberOfData: number = 0;
+  public numberOfExportFile: number = 0;
+  public numberOfExportFileLimit: number = 0;
   constructor(
     @InjectModel(Csv.name) private readonly csvModel: Model<Csv>,
     @InjectModel(Analisys.name) private readonly analisysModel: Model<Analisys>,
@@ -60,6 +62,7 @@ export class CsvService {
     fileName: string,
     modelCsv: Model<Csv>,
     modelBase: Model<Basecsv>,
+    analisysModel: Model<Analisys>,
   ) {
     let duplicateInMongo: number;
     let duplicateInBase: number;
@@ -114,6 +117,23 @@ export class CsvService {
       console.log('Was duplicate, ignore it');
     }
 
+    const DBInfo = await analisysModel.findOne({ fileName: 'DBInfo' });
+
+    await analisysModel.findOneAndUpdate(
+      {
+        fileName: 'DBInfo',
+      },
+      {
+        $set: {
+          validDataCounter:
+            (DBInfo.validDataCounter ? DBInfo.validDataCounter : 0) +
+            data.length -
+            duplicateInMongo,
+        },
+      },
+      { upsert: true },
+    );
+
     return {
       duplicateInMongo: duplicateInMongo,
       row: data.length,
@@ -125,19 +145,23 @@ export class CsvService {
     this.getCountOfLine(fileName);
 
     let data: CsvInsertDto[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let lenghtOfData = 0;
     let uploadingphones = [];
-    let countOfDuplicateInFile: number = 0;
-    let duplicateInMongo: number = 0;
-    let badCounter = 0;
-    let duplicateInBase = 0;
-    let nullTypeAndCarrier = 0;
-    let TMobileCount = 0;
-    let ATTCount = 0;
-    let verisonCount = 0;
+    const resultInfo = {
+      countOfDuplicateInFile: 0,
+      duplicateInMongo: 0,
+      badCounter: 0,
+      duplicateInBase: 0,
+      nullTypeAndCarrier: 0,
+      TMobileCount: 0,
+      ATTCount: 0,
+      verisonCount: 0,
+    };
 
     const model = this.csvModel;
     const modelBase = this.baseModel;
+    const analisysModel = this.analisysModel;
     const phones = new Set();
 
     const csvStream = await this.createStream(fileName);
@@ -200,37 +224,42 @@ export class CsvService {
             element.carrier === 'T-Mobile' ||
             element.carrier === 'Metro by T-Mobile'
           )
-            TMobileCount++;
+            resultInfo.TMobileCount++;
           else if (
             element.carrier === 'Verizon' ||
             element.carrier === 'Verizon Wireless'
           )
-            verisonCount++;
-          else if (element.carrier === 'AT&T') ATTCount++;
+            resultInfo.verisonCount++;
+          else if (element.carrier === 'AT&T') resultInfo.ATTCount++;
           data.push(element);
           if (element.type === undefined && element.carrier === null)
-            nullTypeAndCarrier++;
+            resultInfo.nullTypeAndCarrier++;
           uploadingphones.push(row[phoneNumberIndex]);
           if (data.length === Math.floor(500_000 / numOfFile)) {
             this.numberOfUploadedData += Math.floor(500_000 / numOfFile);
             lenghtOfData += data.length;
-            saver(data, uploadingphones, fileName, model, modelBase).then(
-              (res) => {
-                duplicateInMongo += res.duplicateInMongo;
-                duplicateInBase += res.duplicateInBase;
-                parser.resume();
-              },
-            );
+            saver(
+              data,
+              uploadingphones,
+              fileName,
+              model,
+              modelBase,
+              analisysModel,
+            ).then((res) => {
+              resultInfo.duplicateInMongo += res.duplicateInMongo;
+              resultInfo.duplicateInBase += res.duplicateInBase;
+              parser.resume();
+            });
             parser.pause();
 
             data = [];
             uploadingphones = [];
           }
         } else {
-          countOfDuplicateInFile += 1;
+          resultInfo.countOfDuplicateInFile += 1;
         }
       } else {
-        badCounter += 1;
+        resultInfo.badCounter += 1;
       }
     };
     /////////////////////////////////////////////////////////////
@@ -246,25 +275,20 @@ export class CsvService {
           .on('data', onData)
           .on('end', async function () {
             console.log('Data has been readed');
-            await saver(data, uploadingphones, fileName, model, modelBase).then(
-              (res) => {
-                duplicateInMongo += res.duplicateInMongo;
-                duplicateInBase += res.duplicateInBase;
-              },
-            );
+            await saver(
+              data,
+              uploadingphones,
+              fileName,
+              model,
+              modelBase,
+              analisysModel,
+            ).then((res) => {
+              resultInfo.duplicateInMongo += res.duplicateInMongo;
+              resultInfo.duplicateInBase += res.duplicateInBase;
+            });
             lenghtOfData += data.length;
             fileReaded();
-            resolve({
-              badDataCounter: badCounter,
-              duplicateInFile: countOfDuplicateInFile,
-              duplicateInMongo: duplicateInMongo,
-              validDataCounter: lenghtOfData,
-              duplicateInBase: duplicateInBase,
-              nullTypeAndCarrier: nullTypeAndCarrier,
-              verizonCarrier: verisonCount,
-              ATTCarrier: ATTCount,
-              TMobileCarrier: TMobileCount,
-            });
+            resolve(resultInfo);
           })
           .on('error', function (error) {
             reject(error);
@@ -401,19 +425,17 @@ export class CsvService {
         parser
           .on('data', onData)
           .on('end', async function () {
-            setTimeout(async () => {
-              console.log('Data has been readed');
-              this.numberOfUploadedData += data.length;
-              lenghtOfData += data.length;
-              const result = await updater(data, model, fileName);
-              duplicateInMongo += result;
-              resolve({
-                duplicateInFile: duplicateInFile,
-                duplicateInMongo: duplicateInMongo,
-                badDataCounter: badCounter,
-                validDataCounter: lenghtOfData,
-              });
-            }, 1000);
+            console.log('Data has been readed');
+            this.numberOfUploadedData += data.length;
+            lenghtOfData += data.length;
+            const result = await updater(data, model, fileName);
+            duplicateInMongo += result;
+            resolve({
+              duplicateInFile: duplicateInFile,
+              duplicateInMongo: duplicateInMongo,
+              badDataCounter: badCounter,
+              validDataCounter: lenghtOfData,
+            });
           })
           .on('error', function (error) {
             reject(error);
@@ -485,31 +507,38 @@ export class CsvService {
   async exportData(
     filters: any = undefined,
     displayString: string[],
-    fileName,
+    fileName: string,
   ) {
     const f: optionalFilter = {};
     let limits;
     let count = 0;
+    const analis = await this.analisysModel.findOne({
+      fileName: { $regex: RegExp(filters.listTag) },
+    });
     if (filters) {
       if (filters.phoneNumber)
         f.phoneNumber = { $regex: RegExp(filters.phoneNumber) };
       if (filters.listTag) {
         f.listTag = { $elemMatch: { $regex: RegExp(filters.listTag) } };
-        const analis = await this.analisysModel.findOne({
-          fileName: { $regex: RegExp(filters.listTag) },
-        });
+
         limits = analis.validDataCounter;
       }
-
       if (filters.carrier && filters.carrier !== 'nullTypeAndCarrier')
         f.carrier = { $regex: RegExp(filters.carrier) };
       else if (filters.carrier === 'nullTypeAndCarrier') {
         f.carrier = null;
         f.type = null;
+        if (analis.nullTypeAndCarrier && filters.inBase === false)
+          limits = analis.nullTypeAndCarrier;
       }
 
-      if (filters.inBase != undefined) f.inBase = filters.inBase;
+      if (filters.inBase != undefined) {
+        f.inBase = filters.inBase;
+        if (analis.duplicateInBase && filters.carrier !== 'nullTypeAndCarrier')
+          limits = analis.duplicateInBase;
+      }
     }
+    this.numberOfExportFileLimit += limits ? limits : 1_000_000;
     const cursor = this.csvModel
       .find(f, {}, { skip: 0, limit: limits ? limits : 1_000_000 })
       .select(displayString)
@@ -527,6 +556,7 @@ export class CsvService {
           },${data.lastName ? data.lastName : ''},${
             data.type ? data.type : ''
           },${data.carrier ? data.carrier : ''}`;
+          this.numberOfExportFile++;
           count++;
           await fsWrite.appendFile(`./export/${fileName}.csv`, csvLine + '\n');
         })
@@ -535,6 +565,8 @@ export class CsvService {
         });
     });
     await newPromise;
+    this.numberOfExportFileLimit -= limits ? limits : 1_000_000;
+    this.numberOfExportFile -= count;
     await this.exportModel.updateOne(
       { fileName: fileName },
       {
@@ -589,7 +621,11 @@ export class CsvService {
         carrier === availableCarrier.TMobile
       )
         return analis.TMobileCarrier;
-      if (carrier === availableCarrier.verizon) return analis.verisonCarrier;
+      if (
+        carrier === availableCarrier.Verizon ||
+        carrier === availableCarrier.verisonWireless
+      )
+        return analis.verisonCarrier;
       if (carrier === availableCarrier.ATT) return analis.ATTCarrier;
 
       if (inBase && nullTypeAndCarrier) return 0;
@@ -958,10 +994,20 @@ export class CsvService {
                 else if (data.carrier === 'AT&T') ATTCount++;
                 else if (
                   data.carrier === 'Verizon' ||
-                  data.carrier === 'Verizon Wireles'
+                  data.carrier === 'Verizon Wireless'
                 )
                   verisonCount++;
+                else {
+                  console.log(data.carrier);
+                }
+                // console.log(
+                //   verisonCount,
+                //   TMobileCount,
+                //   ATTCount,
+                //   nullTypeAndCarrierCount,
+                // );
               })
+
               .on('end', async () => {
                 await this.analisysModel.findOneAndUpdate(
                   {
@@ -1013,7 +1059,7 @@ export class CsvService {
           else if (data.carrier === 'AT&T') ATTCount++;
           else if (
             data.carrier === 'Verizon' ||
-            data.carrier === 'Verizon Wireles'
+            data.carrier === 'Verizon Wireless'
           )
             verizonCount++;
           if (data.inBase === true) {

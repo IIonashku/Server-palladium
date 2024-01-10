@@ -9,6 +9,7 @@ export enum deviceType {
 export enum availableCarrier {
   TMobile = 'T-Mobile',
   MetroByTMoblie = 'Metro by T-Mobile',
-  verizon = 'Verizon Wireless',
+  Verizon = 'Verizon',
   ATT = 'AT&T',
+  verisonWireless = 'Verizon Wireless',
 }
