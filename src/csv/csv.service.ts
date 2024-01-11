@@ -963,71 +963,81 @@ export class CsvService {
     const tags = await this.analisysModel.find({ fileName: { $ne: 'DBInfo' } });
     const result = 'End';
     if (tags.length >= 1) {
-      let nullTypeAndCarrierCount = 0;
-      let ATTCount = 0;
-      let TMobileCount = 0;
-      let verisonCount = 0;
       const resultPromise = new Promise(async (resolve) => {
-        for (let i = 0; i < tags.length; i++) {
-          nullTypeAndCarrierCount = 0;
-          ATTCount = 0;
-          TMobileCount = 0;
-          verisonCount = 0;
-          const resultTag = new Promise((resolve) => {
-            const dataCursor = this.csvModel
-              .find({
-                listTag: { $elemMatch: { $regex: RegExp(tags[i].fileName) } },
-              })
-              .cursor();
-            dataCursor
-              .on('data', (data) => {
-                if (
-                  (data.carrier === null || data.carrier === undefined) &&
-                  (data.type === null || data.type === undefined)
-                ) {
-                  nullTypeAndCarrierCount++;
-                } else if (
-                  data.carrier === 'T-Mobile' ||
-                  data.carrier === 'Metro by T-Mobile'
-                )
-                  TMobileCount++;
-                else if (data.carrier === 'AT&T') ATTCount++;
-                else if (
-                  data.carrier === 'Verizon' ||
-                  data.carrier === 'Verizon Wireless'
-                )
-                  verisonCount++;
-                else {
-                  console.log(data.carrier);
-                }
-                // console.log(
-                //   verisonCount,
-                //   TMobileCount,
-                //   ATTCount,
-                //   nullTypeAndCarrierCount,
-                // );
-              })
+        const tagsCounter = [];
+        const allDataCursor = this.csvModel.find({}).cursor();
 
-              .on('end', async () => {
-                await this.analisysModel.findOneAndUpdate(
-                  {
-                    fileName: tags[i].fileName,
+        allDataCursor
+          .on('data', (data) => {
+            const tagsSet = new Set<string>();
+            const tags = data.listTag;
+            for (let i = 0; i < tags.length; i++) {
+              const newSize = tagsSet.size;
+              tagsSet.add(tags[i]);
+              if (newSize !== tagsSet.size) {
+                const include = tagsCounter.includes(tags[i]);
+                if (!include) {
+                  tagsCounter.push(tags[i]);
+                  tagsCounter.push({
+                    inBaseCount: 0,
+                    ATTCount: 0,
+                    TMobileCount: 0,
+                    VerizonCount: 0,
+                    nullTypeAndCarrierCount: 0,
+                  });
+                }
+                const index = tagsCounter.indexOf(tags[i]);
+
+                if (include) {
+                  if (data.inBase) {
+                    tagsCounter[index + 1].inBaseCount++;
+                  }
+                  if (
+                    data.carrier === availableCarrier.TMobile ||
+                    data.carrier === availableCarrier.MetroByTMoblie
+                  ) {
+                    tagsCounter[index + 1].TMobileCount++;
+                  }
+                  if (data.carrier === availableCarrier.ATT) {
+                    tagsCounter[index + 1].ATTCount++;
+                  }
+                  if (
+                    data.carrier === availableCarrier.Verizon ||
+                    data.carrier === availableCarrier.verisonWireless
+                  ) {
+                    tagsCounter[index + 1].VerizonCount++;
+                  }
+                  if (
+                    (data.carrier === undefined || data.carrier === null) &&
+                    (data.type === undefined || data.type === null)
+                  ) {
+                    tagsCounter[index + 1].nullTypeAndCarrierCount++;
+                  }
+                }
+              }
+            }
+          })
+          .on('end', async () => {
+            for (let i = 0; i < tagsCounter.length; i += 2) {
+              await this.analisysModel.findOneAndUpdate(
+                {
+                  fileName: tagsCounter[i],
+                },
+                {
+                  $set: {
+                    duplicateInBase: tagsCounter[i + 1].inBaseCount,
+                    TMobileCarrier: tagsCounter[i + 1].TMobileCount,
+                    ATTCarrier: tagsCounter[i + 1].ATTCount,
+                    verisonCarrier: tagsCounter[i + 1].VerizonCount,
+                    nullTypeAndCarrier:
+                      tagsCounter[i + 1].nullTypeAndCarrierCount,
                   },
-                  {
-                    $set: {
-                      nullTypeAndCarrier: nullTypeAndCarrierCount,
-                      ATTCarrier: ATTCount,
-                      TMobileCarrier: TMobileCount,
-                      verisonCarrier: verisonCount,
-                    },
-                  },
-                );
-                resolve('End');
-              });
+                },
+                { upsert: true },
+              );
+              resolve('true');
+            }
           });
-          await resultTag;
-        }
-        resolve('true');
       });
       await resultPromise;
       return result;
