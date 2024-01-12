@@ -17,16 +17,16 @@ import { HttpService } from '@nestjs/axios';
 import { fileReaded, numOfFile } from './csv.controller';
 import * as fsWrite from 'node:fs/promises';
 import { Export } from './export/export.schema';
-import { availableCarrier, deviceType } from 'src/types/csv.types';
-
-type csvData = {
-  phoneNumber: string;
-  firstName: string;
-  lastName: string;
-  carrier: string;
-  type: string;
-  listTag: string;
-};
+import {
+  apiCarrierResult,
+  availableCarrier,
+  csvCheckDataSchema,
+  csvCheckListTagSchema,
+  csvData,
+  csvUpdateCarrierSchema,
+  deviceType,
+} from 'src/types/csv.types';
+import { AxiosResponse } from 'axios';
 
 type allFilter = {
   phoneNumber: object;
@@ -64,6 +64,9 @@ export class CsvService {
     modelBase: Model<Basecsv>,
     analisysModel: Model<Analisys>,
   ) {
+    let ATTCount = 0;
+    let TMobileCount = 0;
+    let VerizonCount = 0;
     let duplicateInMongo: number;
     let duplicateInBase: number;
 
@@ -92,6 +95,17 @@ export class CsvService {
       const bulkOps = [];
       duplicateInBase = finded.length;
       for (let i = 0; i < finded.length; i++) {
+        if (
+          finded[i].carrier === 'T-Mobile' ||
+          finded[i].carrier === 'Metro by T-Mobile'
+        )
+          TMobileCount++;
+        else if (
+          finded[i].carrier === 'Verizon' ||
+          finded[i].carrier === 'Verizon Wireless'
+        )
+          VerizonCount++;
+        else if (finded[i].carrier === 'AT&T') ATTCount++;
         const filter = { phoneNumber: finded[i].phoneNumber };
         const update = {
           $set: {
@@ -138,6 +152,9 @@ export class CsvService {
       duplicateInMongo: duplicateInMongo,
       row: data.length,
       duplicateInBase: duplicateInBase,
+      ATTCount: ATTCount,
+      TMobileCount: TMobileCount,
+      VerizonCount: VerizonCount,
     };
   }
 
@@ -156,7 +173,7 @@ export class CsvService {
       nullTypeAndCarrier: 0,
       TMobileCount: 0,
       ATTCount: 0,
-      verisonCount: 0,
+      VerizonCount: 0,
     };
 
     const model = this.csvModel;
@@ -220,17 +237,6 @@ export class CsvService {
         };
 
         if (phonesSize !== phones.size) {
-          if (
-            element.carrier === 'T-Mobile' ||
-            element.carrier === 'Metro by T-Mobile'
-          )
-            resultInfo.TMobileCount++;
-          else if (
-            element.carrier === 'Verizon' ||
-            element.carrier === 'Verizon Wireless'
-          )
-            resultInfo.verisonCount++;
-          else if (element.carrier === 'AT&T') resultInfo.ATTCount++;
           data.push(element);
           if (element.type === undefined && element.carrier === null)
             resultInfo.nullTypeAndCarrier++;
@@ -248,6 +254,9 @@ export class CsvService {
             ).then((res) => {
               resultInfo.duplicateInMongo += res.duplicateInMongo;
               resultInfo.duplicateInBase += res.duplicateInBase;
+              resultInfo.ATTCount += res.ATTCount;
+              resultInfo.VerizonCount += res.VerizonCount;
+              resultInfo.TMobileCount += res.TMobileCount;
               parser.resume();
             });
             parser.pause();
@@ -285,6 +294,9 @@ export class CsvService {
             ).then((res) => {
               resultInfo.duplicateInMongo += res.duplicateInMongo;
               resultInfo.duplicateInBase += res.duplicateInBase;
+              resultInfo.ATTCount += res.ATTCount;
+              resultInfo.VerizonCount += res.VerizonCount;
+              resultInfo.TMobileCount += res.TMobileCount;
             });
             lenghtOfData += data.length;
             fileReaded();
@@ -660,17 +672,9 @@ export class CsvService {
     const deleted = await this.analisysModel.findOneAndDelete({
       fileName: fileName,
     });
-    return deleted;
-  }
-
-  async deleteDataOfAnalisys(fileName: string) {
     const reg = RegExp(fileName);
-    const deletedNull = await this.csvModel.deleteMany({
-      listTag: { $elemMatch: { $regex: reg } },
-      carrier: { $in: [null, undefined] },
-      type: { $in: [null, undefined] },
-    });
-    const deleted = await this.csvModel.deleteMany({
+
+    const deletedData = await this.csvModel.deleteMany({
       listTag: { $elemMatch: { $regex: reg } },
     });
     const DBInfo = await this.analisysModel.findOne({ fileName: 'DBInfo' });
@@ -681,9 +685,13 @@ export class CsvService {
         },
         {
           $set: {
-            validDataCounter: DBInfo.validDataCounter - deleted.deletedCount,
+            validDataCounter:
+              DBInfo.validDataCounter - deletedData.deletedCount,
             nullTypeAndCarrier:
-              DBInfo.nullTypeAndCarrier - deletedNull.deletedCount,
+              DBInfo.nullTypeAndCarrier - deleted.nullTypeAndCarrier,
+            ATTCarrier: DBInfo.ATTCarrier - deleted.ATTCarrier,
+            TMobileCarrier: DBInfo.TMobileCarrier - deleted.TMobileCarrier,
+            verisonCarrier: DBInfo.verisonCarrier - deleted.verisonCarrier,
           },
         },
       );
@@ -697,14 +705,17 @@ export class CsvService {
       );
     }
 
-    return { deletedCount: deleted.deletedCount };
+    return { deletedCount: deleted.validDataCounter, deletedFile: deleted };
   }
 
   async detectCarrier(phoneNumber: string) {
     const validPhone = phone(phoneNumber);
     if (validPhone.isValid) {
       phoneNumber = validPhone.phoneNumber.slice(1);
-      let forReturn: any;
+      const carrierToUpdate: csvUpdateCarrierSchema = {
+        type: deviceType.unknown,
+        carrier: 'Unknown',
+      };
       this.httpService.axiosRef
         .get(
           `https://i.textyou.online/campaign/nl/v1/enum/lookup?product=Mobius MNP&phone_number=${phoneNumber}`,
@@ -714,35 +725,36 @@ export class CsvService {
             },
           },
         )
-        .then(async (res) => {
-          forReturn = res.data;
-          let type = res.data.number_type;
-          if (type === 0) {
-            type = null;
-          } else if (type === 2) {
-            type = 'landline';
-          } else if (type === 3) {
-            type = 'mobile';
+        .then(async (res: AxiosResponse<apiCarrierResult>) => {
+          if (res.data.country_iso2 === 'CA') {
+            carrierToUpdate.type = deviceType.invalid;
+            carrierToUpdate.carrier = 'Canadian';
+          } else {
+            if (res.data.number_type === 0) {
+              carrierToUpdate.type = deviceType.unknown;
+            } else if (res.data.number_type === 1) {
+              carrierToUpdate.type = deviceType.invalid;
+            } else if (res.data.number_type === 2) {
+              carrierToUpdate.type = deviceType.landline;
+            } else if (res.data.number_type === 3) {
+              carrierToUpdate.type = deviceType.mobile;
+            }
+            carrierToUpdate.carrier = res.data.operator_name
+              ? res.data.operator_name
+              : deviceType.unknown;
           }
-          const carrier = res.data.operator_name;
 
           await this.baseModel.updateOne(
             { phoneNumber: phoneNumber },
             {
-              $set: {
-                carrier: carrier,
-                type: type,
-              },
+              $setOnInsert: { carrierToUpdate },
             },
             { upsert: true },
           );
           await this.csvModel.updateOne(
             { phoneNumber: phoneNumber },
             {
-              $set: {
-                carrier: carrier,
-                type: type,
-              },
+              $setOnInsert: { carrierToUpdate },
             },
             { upsert: true },
           );
@@ -750,7 +762,7 @@ export class CsvService {
         .catch((err) => {
           console.log(err);
         });
-      return forReturn;
+      return carrierToUpdate;
     }
   }
   async detectArrayCarrier(filters: allFilter) {
@@ -788,35 +800,43 @@ export class CsvService {
                 },
               },
             )
-            .then(async (res) => {
+            .then(async (res: AxiosResponse<apiCarrierResult[]>) => {
               for (let i = 0; i < res.data.length; i++) {
-                let type = res.data[i].number_type;
-                let carrier;
+                const carrierToUpdate: csvUpdateCarrierSchema = {
+                  type: deviceType.unknown,
+                  carrier: 'Unknown',
+                };
+
                 if (res.data[i].country_iso2 === 'CA') {
-                  type = deviceType.invalid;
-                  carrier = 'Canadian';
+                  carrierToUpdate.type = deviceType.invalid;
+                  carrierToUpdate.carrier = 'Canadian';
                 } else {
-                  if (type === 0) {
+                  if (res.data[i].number_type === 0) {
                     forReturn.unknown++;
-                    type = deviceType.unknown;
-                  } else if (type === 1) {
+                    carrierToUpdate.type = deviceType.unknown;
+                  } else if (res.data[i].number_type === 1) {
                     forReturn.invalid++;
-                    type = deviceType.invalid;
-                  } else if (type === 2) {
+                    carrierToUpdate.type = deviceType.invalid;
+                  } else if (res.data[i].number_type === 2) {
                     forReturn.landline++;
-                    type = deviceType.landline;
-                  } else if (type === 3) {
+                    carrierToUpdate.type = deviceType.landline;
+                  } else if (res.data[i].number_type === 3) {
                     forReturn.mobile++;
-                    type = deviceType.mobile;
+                    carrierToUpdate.type = deviceType.mobile;
                   }
-                  carrier = res.data[i].operator_name
+                  carrierToUpdate.carrier = res.data[i].operator_name
                     ? res.data[i].operator_name
                     : deviceType.unknown;
                 }
 
                 const filter = { phoneNumber: res.data[i].phone_number };
 
-                const update = { $set: { carrier: carrier, type: type } };
+                const update = {
+                  $set: {
+                    carrier: carrierToUpdate.carrier,
+                    type: carrierToUpdate.type,
+                  },
+                };
 
                 bulkOps.push({ updateOne: { filter, update, upsert: true } });
               }
@@ -851,7 +871,7 @@ export class CsvService {
     const bulkOps = [];
     const resultPromise = new Promise((resolve) => {
       cursor
-        .on('data', (data) => {
+        .on('data', (data: csvData) => {
           const newLastName = data.lastName.slice(data.lastName.length - 2, 2);
 
           const filter = { phoneNumber: data.phoneNumber };
@@ -874,14 +894,14 @@ export class CsvService {
   async fixBrokenCarrierName() {
     const cursor = this.csvModel
       .find({
-        carrier: { $regex: RegExp('\\r') },
+        carrier: { $regex: RegExp('\\') },
       })
       .cursor();
 
     const bulkOps = [];
     const resultPromise = new Promise((resolve) => {
       cursor
-        .on('data', (data) => {
+        .on('data', (data: csvData) => {
           const newCarrier = data.carrier.slice(data.carrier.length - 2, 2);
 
           const filter = { phoneNumber: data.phoneNumber };
@@ -910,13 +930,11 @@ export class CsvService {
     let deletedCount = 0;
     const resultPromise = new Promise((resolve) => {
       cursor
-        .on('data', async (data) => {
+        .on('data', async (data: csvData) => {
           const filter = { phoneNumber: data.phoneNumber };
 
           bulkOps.push({ deleteOne: { filter: filter } });
           if (bulkOps.length === 4_000_00) {
-            console.log('in');
-
             this.baseModel.bulkWrite(bulkOps).then((result) => {
               bulkOps = [];
               deletedCount += result.deletedCount;
@@ -953,8 +971,8 @@ export class CsvService {
   }
 
   async getBrokenDataLenght() {
-    const carrier = await this.csvModel.count({ carrier: '\\r' });
-    const lastName = await this.csvModel.count({ lastName: '\\r' });
+    const carrier = await this.csvModel.count({ carrier: '\\' });
+    const lastName = await this.csvModel.count({ lastName: '\\' });
 
     return { brokenCarrier: carrier, brokenLastname: lastName };
   }
@@ -968,7 +986,7 @@ export class CsvService {
         const allDataCursor = this.csvModel.find({}).cursor();
 
         allDataCursor
-          .on('data', (data) => {
+          .on('data', (data: csvCheckListTagSchema) => {
             const tagsSet = new Set<string>();
             const tags = data.listTag;
             for (let i = 0; i < tags.length; i++) {
@@ -1024,7 +1042,7 @@ export class CsvService {
                   fileName: tagsCounter[i],
                 },
                 {
-                  $set: {
+                  $setOnInsert: {
                     duplicateInBase: tagsCounter[i + 1].inBaseCount,
                     TMobileCarrier: tagsCounter[i + 1].TMobileCount,
                     ATTCarrier: tagsCounter[i + 1].ATTCount,
@@ -1055,21 +1073,21 @@ export class CsvService {
     const result = 'Done';
     const resultPromise = new Promise((resolve) => {
       dataCursor
-        .on('data', (data) => {
+        .on('data', (data: csvCheckDataSchema) => {
           if (
             (data.carrier === null || data.carrier === undefined) &&
             (data.type === null || data.type === undefined)
           ) {
             csvNullCarrierAndType++;
           } else if (
-            data.carrier === 'T-Mobile' ||
-            data.carrier === 'Metro by T-Mobile'
+            data.carrier === availableCarrier.TMobile ||
+            data.carrier === availableCarrier.MetroByTMoblie
           )
             TMobileCount++;
-          else if (data.carrier === 'AT&T') ATTCount++;
+          else if (data.carrier === availableCarrier.ATT) ATTCount++;
           else if (
-            data.carrier === 'Verizon' ||
-            data.carrier === 'Verizon Wireless'
+            data.carrier === availableCarrier.Verizon ||
+            data.carrier === availableCarrier.verisonWireless
           )
             verizonCount++;
           if (data.inBase === true) {
@@ -1080,7 +1098,7 @@ export class CsvService {
           await this.analisysModel.updateOne(
             { fileName: 'DBInfo' },
             {
-              $set: {
+              $setOnInsert: {
                 validDataCounter: allDataCount,
                 duplicateInMongo: 0,
                 duplicateInBase: csvInBase,
@@ -1124,9 +1142,8 @@ export class CsvService {
     let canadian = 0;
     const resultPromise = new Promise(async (resolve) => {
       cursor
-        .on('data', async (data) => {
+        .on('data', async (data: csvData) => {
           const detail = phone(data.phoneNumber);
-          console.log(data.carrier);
           if (detail.countryIso2 === 'CA' && data.carrier !== 'canadian') {
             const filter = { phoneNumber: data.phoneNumber };
 

@@ -185,9 +185,11 @@ export class CsvController {
   @Delete('/analisys/delete/:fileName')
   async deleteAnalisys(@Param('fileName') fileName: string) {
     try {
-      const deletedData = await this.csvService.deleteDataOfAnalisys(fileName);
       const deletedAnalisys = await this.csvService.deleteAnalisys(fileName);
-      return { deletedData: deletedData, deletedAnalisys: deletedAnalisys };
+      return {
+        deletedData: deletedAnalisys.deletedCount,
+        deletedAnalisys: deletedAnalisys.deletedFile,
+      };
     } catch (e) {
       throw new InternalServerErrorException();
     }
@@ -234,11 +236,11 @@ export class CsvController {
                   ATTCarrier: Number(innerResult.ATTCarrier)
                     ? Number(innerResult.ATTCarrier)
                     : 0,
-                  TMobileCarrier: Number(innerResult.ATTCarrier)
-                    ? Number(innerResult.ATTCarrier)
+                  TMobileCarrier: Number(innerResult.TMobileCount)
+                    ? Number(innerResult.TMobileCount)
                     : 0,
-                  verizonCarrier: Number(innerResult.ATTCarrier)
-                    ? Number(innerResult.ATTCarrier)
+                  verizonCarrier: Number(innerResult.VerizonCount)
+                    ? Number(innerResult.VerizonCount)
                     : 0,
                 });
                 if (analis === 'ERROR')
