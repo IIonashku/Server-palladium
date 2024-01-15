@@ -27,10 +27,16 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiCsvFiles } from '../decorators/api-file.fields.decorator';
 import { Public } from 'src/auth/public.declaration';
 import { LimitAndFilters } from './swagger.csv.dto';
-import phone from 'phone';
 import { Response } from 'express';
 import { createReadStream } from 'node:fs';
 import { JwtService } from '@nestjs/jwt';
+import {
+  analisysResultData,
+  apiResult,
+  csvResultData,
+  exportResultData,
+} from 'src/types/csv.controller.result.types';
+import { csvUpdateCarrierSchema } from 'src/types/csv.types';
 
 let readingStatus: string = 'Not reading';
 export let numOfFile: number = 0;
@@ -51,7 +57,7 @@ export class CsvController {
 
   @ApiOperation({ summary: 'get data count' })
   @Post('/count/')
-  async getCsvDataLenght(@Body('filters') filters?: any) {
+  async getCsvDataLenght(@Body('filters') filters?: any): Promise<number> {
     return await this.csvService.getDataLenght(filters);
   }
 
@@ -62,7 +68,7 @@ export class CsvController {
     @Body('inBase') inBase: boolean,
     @Body('nullTypeAndCarrier') nullTypeAndCarrier: boolean,
     @Body('carrier') carrier: string,
-  ) {
+  ): Promise<number> {
     return await this.csvService.getAnalisysValidData(
       fileName,
       inBase,
@@ -78,18 +84,17 @@ export class CsvController {
     @Body('options') options: any,
     @Body('filters') filters: any,
     @Body('displayStrings') displayStrings: string[],
-  ) {
+  ): Promise<csvResultData[]> {
     if (options.skips < 0 && options.limits < 0) {
       throw new BadRequestException('Options not correct');
     }
 
-    const response = await this.csvService.getData(
+    return await this.csvService.getData(
       options.skips,
       options.limits,
       filters,
       displayStrings,
     );
-    return response;
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
@@ -126,14 +131,14 @@ export class CsvController {
   }
 
   @Post('/analisys/count/')
-  async getAnalisysDataLenght() {
+  async getAnalisysDataLenght(): Promise<number> {
     return await this.csvService.getAnalisysDataLenght();
   }
 
   @ApiOperation({ summary: 'Get data for front-end' })
   @ApiBody({ type: LimitAndFilters })
   @Post('/analisys/data/')
-  async getAnalisysData(@Body() options: any) {
+  async getAnalisysData(@Body() options: any): Promise<analisysResultData[]> {
     if (options.options.skips < 0 && options.options.limits < 0) {
       throw new BadRequestException('Options not correct');
     }
@@ -145,7 +150,7 @@ export class CsvController {
 
   @ApiOperation({ summary: 'Get all List tag for front-end' })
   @Post('/analisys/tags')
-  async getListTags() {
+  async getListTags(): Promise<analisysResultData[]> {
     return await this.csvService.getListTags();
   }
 
@@ -168,17 +173,6 @@ export class CsvController {
       dataLimit: this.csvService.numberOfExportFileLimit,
       fileExporting: this.numFileExporting,
     };
-  }
-
-  @ApiOperation({ summary: 'Read data from existed csv file in server' })
-  @Get('/read/:fileName')
-  async readCsv(@Param('fileName') fileName: string) {
-    try {
-      const result = await this.csvService.readFile(fileName);
-      return result;
-    } catch (e) {
-      throw new InternalServerErrorException();
-    }
   }
 
   @ApiOperation({ summary: 'Read data from existed csv file in server' })
@@ -219,36 +213,16 @@ export class CsvController {
           fileResult
             .then(async (innerResult) => {
               try {
-                const analis = await this.csvService.saveAnalisys({
-                  fileName: file.filename,
-                  badDataCounter: Number(innerResult.badDataCounter),
-                  validDataCounter: Number(innerResult.validDataCounter),
-                  duplicateInFile: innerResult.duplicateInFile
-                    ? Number(innerResult.duplicateInFile)
-                    : 0,
-                  duplicateInMongo: innerResult.duplicateInMongo
-                    ? Number(innerResult.duplicateInMongo)
-                    : 0,
-                  duplicateInBase: innerResult.duplicateInBase,
-                  nullTypeAndCarrier: Number(innerResult.nullTypeAndCarrier)
-                    ? Number(innerResult.nullTypeAndCarrier)
-                    : 0,
-                  ATTCarrier: Number(innerResult.ATTCarrier)
-                    ? Number(innerResult.ATTCarrier)
-                    : 0,
-                  TMobileCarrier: Number(innerResult.TMobileCount)
-                    ? Number(innerResult.TMobileCount)
-                    : 0,
-                  verizonCarrier: Number(innerResult.VerizonCount)
-                    ? Number(innerResult.VerizonCount)
-                    : 0,
-                });
+                const analis = await this.csvService.saveAnalisys(
+                  innerResult,
+                  'upload',
+                );
                 if (analis === 'ERROR')
                   result.push({
                     error: 'Error',
                     message: `file: ${file.filename} is already exist`,
                   });
-                else result.push([await innerResult, file.filename]);
+                else result.push([innerResult, file.filename]);
               } catch {
                 throw new BadRequestException();
               }
@@ -270,13 +244,13 @@ export class CsvController {
             });
         });
       });
+      await res;
+      this.csvService.numberOfData = 0;
       return { result: await res };
     } catch (e) {
       console.log(e);
       readingStatus = 'ERROR';
       throw new InternalServerErrorException();
-    } finally {
-      this.csvService.numberOfData = 0;
     }
   }
 
@@ -302,18 +276,10 @@ export class CsvController {
           fileResult
             .then(async (innerResult) => {
               try {
-                const analis = await this.csvService.saveAnalisys({
-                  fileName: file.filename + '.update',
-                  badDataCounter: innerResult.badDataCounter,
-                  validDataCounter: innerResult.validDataCounter,
-                  duplicateInFile: innerResult.duplicateInFile
-                    ? Number(innerResult.duplicateInFile)
-                    : 0,
-                  duplicateInMongo: innerResult.duplicateInMongo
-                    ? Number(innerResult.duplicateInMongo)
-                    : 0,
-                  duplicateInBase: 0,
-                });
+                const analis = await this.csvService.saveAnalisys(
+                  innerResult,
+                  'update',
+                );
                 if (analis === 'ERROR')
                   result.push({
                     error: 'Error',
@@ -340,35 +306,24 @@ export class CsvController {
             });
         });
       });
+      await res;
+      this.csvService.numberOfData = 0;
       return { result: await res };
     } catch (e) {
       console.log(e);
       readingStatus = 'ERROR';
       throw new InternalServerErrorException();
-    } finally {
-      this.csvService.numberOfData = 0;
     }
   }
 
   @ApiOperation({ summary: 'check phone number`s carrier and type' })
   @ApiParam({ name: 'phoneNumber' })
   @Get('/check/carrier/:phoneNumber')
-  async checkCarrier(@Param('phoneNumber') phoneNumber: any) {
+  async checkCarrier(
+    @Param('phoneNumber') phoneNumber: any,
+  ): Promise<csvUpdateCarrierSchema> {
     try {
-      const result = await this.csvService.detectCarrier(phoneNumber);
-      return result;
-    } catch (e) {
-      throw new HttpException(e, 500);
-    }
-  }
-
-  @ApiOperation({ summary: 'check phone number`s carrier and type' })
-  @ApiParam({ name: 'phoneNumber' })
-  @Get('/check/carrier/test/:phoneNumber')
-  async TestcheckCarrier(@Param('phoneNumber') phoneNumber: any) {
-    try {
-      const result = phone(phoneNumber);
-      return result;
+      return await this.csvService.detectCarrier(phoneNumber);
     } catch (e) {
       throw new HttpException(e, 500);
     }
@@ -377,10 +332,9 @@ export class CsvController {
   @ApiOperation({ summary: 'check phone number`s carrier and type' })
   @ApiBody({})
   @Post('/check/carrier/')
-  async checkArrayCarrier(@Body('filters') filters: any) {
+  async checkArrayCarrier(@Body('filters') filters: any): Promise<apiResult> {
     try {
-      const result = await this.csvService.detectArrayCarrier(filters);
-      return result;
+      return await this.csvService.detectArrayCarrier(filters);
     } catch (e) {
       throw new HttpException(e, 500);
     }
@@ -388,31 +342,33 @@ export class CsvController {
 
   @ApiOperation({ summary: 'Fix all damaged lastname in database' })
   @Get('/fix/lastname')
-  async fixLastName() {
+  async fixLastName(): Promise<number> {
     return await this.csvService.fixBrokenLastName();
   }
 
   @ApiOperation({ summary: 'Fix all damaged carrier in database' })
   @Get('/fix/carrier')
-  async fixCarrier() {
+  async fixCarrier(): Promise<number> {
     return await this.csvService.fixBrokenCarrierName();
   }
 
   @ApiOperation({ summary: 'delete base which already in data' })
   @Get('/base/clear')
-  async clearBase() {
+  async clearBase(): Promise<number> {
     return await this.csvService.clearBase();
   }
 
   @ApiOperation({ summary: 'get all Export file available' })
   @Get('/export/files')
-  async getExportFiles() {
+  async getExportFiles(): Promise<exportResultData[]> {
     return await this.csvService.getExportFiles();
   }
 
   @ApiOperation({ summary: 'get all Export file available' })
   @Get('/export/delete/:fileName')
-  async deleteExportFile(@Param('fileName') fileName: string) {
+  async deleteExportFile(
+    @Param('fileName') fileName: string,
+  ): Promise<exportResultData> {
     return await this.csvService.deleteExportFile(fileName);
   }
 
@@ -424,7 +380,7 @@ export class CsvController {
 
   @ApiOperation({ summary: 'set/update all data analisys' })
   @Get('analisys/all/set/')
-  async setData(@Req() req: Request) {
+  async setData(@Req() req: Request): Promise<string> {
     const token: any = req.headers;
     const payload: any = this.jwtService.decode(
       token.authorization.split(' ')[1],
@@ -441,7 +397,7 @@ export class CsvController {
 
   @ApiOperation({ summary: 'set/update all list tags analisys' })
   @Get('/analisys/tags/set/')
-  async setDataListTag(@Req() req: Request) {
+  async setDataListTag(@Req() req: Request): Promise<string> {
     const token: any = req.headers;
     const payload: any = this.jwtService.decode(
       token.authorization.split(' ')[1],
@@ -458,19 +414,21 @@ export class CsvController {
 
   @ApiOperation({ summary: 'Check if exist specific analisys' })
   @Post('/analisys/check/')
-  async getAnalisys(@Body('fileName') fileName: string) {
+  async getAnalisys(@Body('fileName') fileName: string): Promise<boolean> {
     return await this.csvService.checkAnalisys(fileName);
   }
 
   @ApiOperation({ summary: 'Get specific list tag' })
   @Get('/analis/get/:fileName')
-  async getSpecificTag(@Param('fileName') fileName: string) {
+  async getSpecificTag(
+    @Param('fileName') fileName: string,
+  ): Promise<analisysResultData> {
     return await this.csvService.getSpecificTag(fileName);
   }
 
   @ApiOperation({ summary: 'Find and update canadian numbers' })
   @Get('/data/canadian/')
-  async updateCanadian() {
+  async updateCanadian(): Promise<number> {
     return await this.csvService.checkCanadianNumber();
   }
 }

@@ -53,7 +53,7 @@ export class Analisys {
 
   @ApiProperty()
   @Prop({ required: false })
-  verisonCarrier: number;
+  verizonCarrier: number;
 }
 
 export const AnalisysSchema = SchemaFactory.createForClass(Analisys);

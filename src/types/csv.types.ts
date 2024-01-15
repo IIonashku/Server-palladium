@@ -11,7 +11,7 @@ export enum availableCarrier {
   MetroByTMoblie = 'Metro by T-Mobile',
   Verizon = 'Verizon',
   ATT = 'AT&T',
-  verisonWireless = 'Verizon Wireless',
+  verizonWireless = 'Verizon Wireless',
 }
 
 export type analisysCreateSchema = {
@@ -24,7 +24,7 @@ export type analisysCreateSchema = {
   nullTypeAndCarrier: number;
   ATTCarrier: number;
   TMobileCarrier: number;
-  verisonCarrier: number;
+  verizonCarrier: number;
 };
 
 export type analisysUpdateSchema = {
@@ -33,7 +33,7 @@ export type analisysUpdateSchema = {
   nullTypeAndCarrier: number;
   ATTCarrier: number;
   TMobileCarrier: number;
-  verisonCarrier: number;
+  verizonCarrier: number;
 };
 
 export type csvCreateSchema = {
