@@ -83,7 +83,7 @@ export class AuthService {
   // REFRESH ////////////////////////////////
 
   async refreshToken(token: string) {
-    const info: any = await this.jwtService.decode(token);
+    const info: any = this.jwtService.decode(token);
     const payload = {
       sub: info.sub,
       username: info.username,
@@ -92,8 +92,8 @@ export class AuthService {
     };
 
     const userToken: UserUpdateTokenDto = {
-      jwt: await this.jwtService.sign(payload),
-      refresh: await this.jwtService.sign(payload, {
+      jwt: this.jwtService.sign(payload),
+      refresh: this.jwtService.sign(payload, {
         secret: process.env.JWT_REFRESH_SECRET,
       }),
     };

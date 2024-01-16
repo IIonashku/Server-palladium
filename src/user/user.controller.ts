@@ -68,7 +68,6 @@ export class UserController {
     @Body('oldPassword') oldPassword: string,
     @Body('newPassword') newPassword: string[],
   ) {
-    console.log(oldPassword, newPassword);
     const token: any = await this.userService.getRequest();
     const payload: any = this.jwtService.decode(
       token.headers.authorization.split(' ')[1],
@@ -87,7 +86,6 @@ export class UserController {
     @Body('password') password: string,
     @Body('newUsername') newUsername: string,
   ) {
-    console.log(password, newUsername);
     const token: any = await this.userService.getRequest();
     const payload: any = this.jwtService.decode(
       token.headers.authorization.split(' ')[1],

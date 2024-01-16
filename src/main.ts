@@ -17,7 +17,6 @@ async function bootstrap() {
           return;
         }
         if (whitelist.includes(origin)) {
-          console.log('allowed cors for:', origin);
           callback(null, true);
         } else {
           console.log('blocked cors for:', origin);

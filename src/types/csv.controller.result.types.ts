@@ -1,4 +1,4 @@
-import { deviceType } from './csv.types';
+import { analisysCreateSchema, deviceType } from './csv.types';
 
 export type csvResultData = {
   phoneNumber: string;
@@ -39,4 +39,11 @@ export type apiResult = {
   unknown: number;
   invalid: number;
   canadian: number;
+};
+
+export type uploadFileResult = {
+  fileName: string;
+  analis?: Partial<analisysCreateSchema>;
+  error?: string;
+  message?: string;
 };

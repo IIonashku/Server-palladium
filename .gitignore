@@ -3,6 +3,8 @@
 /node_modules
 /csvs
 /csvs/*
+/export/*
+/export
 
 # Logs
 logs

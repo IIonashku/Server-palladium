@@ -10,7 +10,7 @@ import { Model } from 'mongoose';
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import phone from 'phone';
-import { CsvInsertDto, CsvUpdateDto } from './main/csv.dto';
+import { CsvInsertDto } from './main/csv.dto';
 import { Analisys } from './analisys/csv.analisys.schema';
 import { Basecsv } from './base/base.csv.schema';
 import { HttpService } from '@nestjs/axios';
@@ -29,6 +29,7 @@ import {
 } from 'src/types/csv.types';
 import { AxiosResponse } from 'axios';
 import {
+  analisysResultData,
   apiResult,
   csvResultData,
 } from 'src/types/csv.controller.result.types';
@@ -61,19 +62,22 @@ export class CsvService {
     return fs.createReadStream(`./csvs/${fileName}`, 'utf8');
   }
 
-  async saveDataToBD(
+  async saveDataToDB(
     data: CsvInsertDto[],
     phones: string[],
     fileName: string,
     modelCsv: Model<Csv>,
     modelBase: Model<Basecsv>,
     analisysModel: Model<Analisys>,
-  ) {
-    let ATTCount = 0;
-    let TMobileCount = 0;
-    let VerizonCount = 0;
-    let duplicateInMongo: number;
-    let duplicateInBase: number;
+  ): Promise<Partial<analisysResultData>> {
+    const result: Partial<analisysResultData> = {
+      ATTCarrier: 0,
+      TMobileCarrier: 0,
+      verizonCarrier: 0,
+      duplicateInMongo: 0,
+      duplicateInBase: 0,
+      validDataCounter: data.length,
+    };
 
     try {
       await modelCsv.insertMany(data, {
@@ -84,7 +88,7 @@ export class CsvService {
         const csvIds = await e.result.result.writeErrors.map((error) => {
           return error.err.op.phoneNumber;
         });
-        duplicateInMongo = await csvIds.length;
+        result.duplicateInMongo = await csvIds.length;
         await modelCsv.updateMany(
           { phoneNumber: { $in: csvIds } },
           { $push: { listTag: fileName } },
@@ -98,19 +102,20 @@ export class CsvService {
         { _id: false, __v: false },
       );
       const bulkOps = [];
-      duplicateInBase = finded.length;
+      result.duplicateInBase = finded.length;
       for (let i = 0; i < finded.length; i++) {
         if (
           finded[i].carrier === availableCarrier.TMobile ||
           finded[i].carrier === availableCarrier.MetroByTMoblie
         )
-          TMobileCount++;
+          result.TMobileCarrier++;
         else if (
           finded[i].carrier === availableCarrier.Verizon ||
           finded[i].carrier === availableCarrier.verizonWireless
         )
-          VerizonCount++;
-        else if (finded[i].carrier === availableCarrier.ATT) ATTCount++;
+          result.verizonCarrier++;
+        else if (finded[i].carrier === availableCarrier.ATT)
+          result.ATTCarrier++;
         const filter = { phoneNumber: finded[i].phoneNumber };
         const update = {
           $set: {
@@ -147,23 +152,19 @@ export class CsvService {
           validDataCounter:
             (DBInfo.validDataCounter ? DBInfo.validDataCounter : 0) +
             data.length -
-            duplicateInMongo,
+            result.duplicateInMongo,
         },
       },
       { upsert: true },
     );
 
-    return {
-      duplicateInMongo: duplicateInMongo,
-      row: data.length,
-      duplicateInBase: duplicateInBase,
-      ATTCount: ATTCount,
-      TMobileCount: TMobileCount,
-      VerizonCount: VerizonCount,
-    };
+    return result;
   }
 
-  async readFile(fileName: string): Promise<analisysCreateSchema> {
+  async readFile(
+    fileName: string,
+    method: string,
+  ): Promise<analisysCreateSchema> {
     this.getCountOfLine(fileName);
 
     let data: CsvInsertDto[] = [];
@@ -187,8 +188,10 @@ export class CsvService {
     const phones = new Set();
 
     const csvStream = await this.createStream(fileName);
-    const saver = this.saveDataToBD;
-
+    let saver = this.saveDataToDB;
+    if (method === 'update') {
+      saver = this.updateDataToDB;
+    }
     let first = true;
     const parser = parse({
       delimiter: ',',
@@ -259,9 +262,9 @@ export class CsvService {
             ).then((res) => {
               resultInfo.duplicateInMongo += res.duplicateInMongo;
               resultInfo.duplicateInBase += res.duplicateInBase;
-              resultInfo.ATTCarrier += res.ATTCount;
-              resultInfo.verizonCarrier += res.VerizonCount;
-              resultInfo.TMobileCarrier += res.TMobileCount;
+              resultInfo.ATTCarrier += res.ATTCarrier;
+              resultInfo.verizonCarrier += res.verizonCarrier;
+              resultInfo.TMobileCarrier += res.TMobileCarrier;
               parser.resume();
             });
             parser.pause();
@@ -301,9 +304,9 @@ export class CsvService {
               ).then((res) => {
                 resultInfo.duplicateInMongo += res.duplicateInMongo;
                 resultInfo.duplicateInBase += res.duplicateInBase;
-                resultInfo.ATTCarrier += res.ATTCount;
-                resultInfo.verizonCarrier += res.VerizonCount;
-                resultInfo.TMobileCarrier += res.TMobileCount;
+                resultInfo.ATTCarrier += res.ATTCarrier;
+                resultInfo.verizonCarrier += res.verizonCarrier;
+                resultInfo.TMobileCarrier += res.TMobileCarrier;
               });
               resultInfo.validDataCounter += data.length;
               fileReaded();
@@ -320,19 +323,31 @@ export class CsvService {
 
   //////////////////////////////////////////////////////
 
-  async updateDataToBD(
-    chunk: CsvUpdateDto[],
-    model: Model<Csv>,
+  async updateDataToDB(
+    chunk: CsvInsertDto[],
+    phones: string[],
     fileName: string,
-  ) {
+    modelCsv: Model<Csv>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    modelBase: Model<Basecsv>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    analisysModel: Model<Analisys>,
+  ): Promise<Partial<analisysResultData>> {
     const bulkOps = [];
+    const result: Partial<analisysResultData> = {
+      fileName: fileName,
+      TMobileCarrier: 0,
+      ATTCarrier: 0,
+      verizonCarrier: 0,
+      duplicateInMongo: 0,
+    };
     try {
-      chunk.forEach((data) => {
-        const filter = { phoneNumber: data.phoneNumber };
+      for (let i = 0; i < chunk.length; i++) {
+        const filter = { phoneNumber: chunk[i].phoneNumber };
         const update = {
           $set: {
-            firstName: data.firstName,
-            lastName: data.lastName,
+            firstName: chunk[i].firstName,
+            lastName: chunk[i].lastName,
           },
           $push: { listTag: fileName },
         };
@@ -343,130 +358,16 @@ export class CsvService {
             upsert: true,
           },
         });
+      }
+      await modelCsv.bulkWrite(bulkOps).then((res) => {
+        result.duplicateInMongo = res.modifiedCount;
       });
-      const result = await model.bulkWrite(bulkOps);
-      return result.modifiedCount;
+      return result;
     } catch (e) {
       throw new InternalServerErrorException(e);
     }
   }
 
-  async updateData(fileName: string): Promise<Partial<analisysCreateSchema>> {
-    this.getCountOfLine(fileName);
-
-    const updater = this.updateDataToBD;
-
-    const phones = new Set();
-    let lenghtOfData = 0;
-    let duplicateInFile = 0;
-    let duplicateInMongo = 0;
-    let data: CsvUpdateDto[] = [];
-    let badCounter = 0;
-
-    const model = this.csvModel;
-
-    const csvStream = await this.createStream(fileName);
-    const parser = parse({
-      delimiter: ',',
-      from_line: 1,
-      skip_empty_lines: true,
-      skip_records_with_error: true,
-      relax_column_count_less: true,
-      relax_column_count_more: true,
-    });
-    const onData = async (row) => {
-      if (first) {
-        first = false;
-        for (let i = 0; i < row.length; i++) {
-          switch (row[i].toLowerCase()) {
-            case 'firstname':
-              firstNameIndex = i;
-              break;
-            case 'lastname':
-              lastNameIndex = i;
-              break;
-            case 'phone':
-              phoneNumberIndex = i;
-              break;
-            // case 'type':
-            //   typeIndex = i;
-            //   break;
-            // case 'carrier':
-            //   carrierIndex = i;
-            //   break;
-          }
-        }
-      }
-      const validPhone = phone(row[phoneNumberIndex]);
-      if (validPhone.isValid) {
-        row[phoneNumberIndex] = validPhone.phoneNumber.slice(
-          1,
-          validPhone.phoneNumber.length,
-        );
-        const phonesSize = phones.size;
-        phones.add(row[phoneNumberIndex]);
-
-        const element: CsvUpdateDto = {
-          phoneNumber: row[phoneNumberIndex],
-          firstName: row[firstNameIndex],
-          lastName: row[lastNameIndex],
-        };
-
-        if (phones.size > phonesSize) data.push(element);
-        else duplicateInFile++;
-
-        if (data.length >= 5000) {
-          this.numberOfUploadedData += data.length;
-          lenghtOfData += data.length;
-          updater(data, model, fileName).then((result) => {
-            duplicateInMongo += result;
-            parser.resume();
-          });
-          parser.pause();
-
-          data = [];
-        }
-      } else {
-        badCounter += 1;
-      }
-    };
-
-    ////////////////////////////////////////////////////
-
-    let phoneNumberIndex = 0;
-    let firstNameIndex = 10;
-    let lastNameIndex = 10;
-    // let typeIndex = 10;
-    // let carrierIndex = 10;
-    let first = true;
-
-    const result = await new Promise<Partial<analisysCreateSchema>>(
-      async (resolve, reject) => {
-        csvStream.pipe(
-          parser
-            .on('data', onData)
-            .on('end', async function () {
-              console.log('Data has been readed');
-              this.numberOfUploadedData += data.length;
-              lenghtOfData += data.length;
-              const result = await updater(data, model, fileName);
-              duplicateInMongo += result;
-              resolve({
-                fileName: fileName,
-                duplicateInFile: duplicateInFile,
-                duplicateInMongo: duplicateInMongo,
-                badDataCounter: badCounter,
-                validDataCounter: lenghtOfData,
-              });
-            })
-            .on('error', function (error) {
-              reject(error);
-            }),
-        );
-      },
-    );
-    return await result;
-  }
   async getCountOfLine(fileName: string) {
     let lineCount = 0;
     const csvStream = await this.createStream(fileName);
@@ -492,26 +393,29 @@ export class CsvService {
   async saveAnalisys(analisys: Partial<analisysCreateSchema>, method: string) {
     try {
       if (method === 'upload') {
-        return await this.analisysModel.updateOne(
-          {
-            fileName: analisys.fileName,
-          },
-          {
-            $setOnInsert: {
-              badDataCounter: analisys.badDataCounter,
-              validDataCounter: analisys.validDataCounter,
-              duplicateInBase: analisys.duplicateInBase,
-              duplicateInFile: analisys.duplicateInFile,
-              duplicateInMongo: analisys.duplicateInMongo,
-              ATTCarrier: analisys.ATTCarrier,
-              TMobileCarrier: analisys.TMobileCarrier,
-              nullTypeAndCarrier: analisys.nullTypeAndCarrier,
-              verizonCarrier: analisys.verizonCarrier,
-            },
-          },
-          { upsert: true },
-        );
+        const newAnalisys = new this.analisysModel({
+          fileName: analisys.fileName,
+          badDataCounter: analisys.badDataCounter,
+          validDataCounter: analisys.validDataCounter,
+          duplicateInBase: analisys.duplicateInBase,
+          duplicateInFile: analisys.duplicateInFile,
+          duplicateInMongo: analisys.duplicateInMongo,
+          ATTCarrier: analisys.ATTCarrier,
+          TMobileCarrier: analisys.TMobileCarrier,
+          nullTypeAndCarrier: analisys.nullTypeAndCarrier,
+          verizonCarrier: analisys.verizonCarrier,
+        });
+        return await newAnalisys.save();
       } else if (method === 'update') {
+        const finded = await this.analisysModel.findOne({
+          fileName: analisys.fileName,
+        });
+        if (finded) {
+          analisys.duplicateInBase = finded.duplicateInBase;
+          analisys.TMobileCarrier = finded.TMobileCarrier;
+          analisys.verizonCarrier = finded.verizonCarrier;
+          analisys.ATTCarrier = finded.ATTCarrier;
+        }
         return await this.analisysModel.updateOne(
           {
             fileName: analisys.fileName,
@@ -522,6 +426,7 @@ export class CsvService {
               validDataCounter: analisys.validDataCounter,
               duplicateInFile: analisys.duplicateInFile,
               duplicateInMongo: analisys.duplicateInMongo,
+              duplicateInBase: 0,
             },
           },
         );
@@ -1021,7 +926,6 @@ export class CsvService {
       const resultPromise = new Promise(async (resolve) => {
         const tagsCounter = [];
         const allDataCursor = this.csvModel.find({}).cursor();
-
         allDataCursor
           .on('data', (data: csvCheckListTagSchema) => {
             const tagsSet = new Set<string>();
@@ -1101,71 +1005,55 @@ export class CsvService {
 
   async setCountNullTypeAndCarrier() {
     const dataCursor = this.csvModel.find({}).cursor();
-    let csvNullCarrierAndType = 0;
-    let csvInBase = 0;
-    let ATTCount = 0;
-    let TMobileCount = 0;
-    let verizonCount = 0;
-    let validDataCounter = 0;
-    const result = 'Done';
-    const resultPromise = new Promise((resolve) => {
+    const result: analisysResultData = {
+      fileName: 'DBInfo',
+      nullTypeAndCarrier: 0,
+      duplicateInBase: 0,
+      ATTCarrier: 0,
+      TMobileCarrier: 0,
+      verizonCarrier: 0,
+      validDataCounter: 0,
+      duplicateInMongo: 0,
+      duplicateInFile: 0,
+      badDataCounter: 0,
+    };
+    const resultPromise = new Promise<analisysResultData>((resolve) => {
       dataCursor
         .on('data', (data: csvCheckDataSchema) => {
-          validDataCounter++;
+          result.validDataCounter++;
           if (
             (data.carrier === null || data.carrier === undefined) &&
             (data.type === null || data.type === undefined)
           ) {
-            csvNullCarrierAndType++;
+            result.nullTypeAndCarrier++;
           } else if (
             data.carrier === availableCarrier.TMobile ||
             data.carrier === availableCarrier.MetroByTMoblie
           )
-            TMobileCount++;
-          else if (data.carrier === availableCarrier.ATT) ATTCount++;
+            result.TMobileCarrier++;
+          else if (data.carrier === availableCarrier.ATT) result.ATTCarrier++;
           else if (
             data.carrier === availableCarrier.Verizon ||
             data.carrier === availableCarrier.verizonWireless
           )
-            verizonCount++;
+            result.verizonCarrier++;
           if (data.inBase === true) {
-            csvInBase++;
+            result.duplicateInBase++;
           }
         })
         .on('end', async () => {
           await this.analisysModel.updateOne(
             { fileName: 'DBInfo' },
             {
-              $set: {
-                validDataCounter: validDataCounter,
-                duplicateInMongo: 0,
-                duplicateInBase: csvInBase,
-                badDataCounter: 0,
-                duplicateInFile: 0,
-                nullTypeAndCarrier: csvNullCarrierAndType,
-                ATTCarrier: ATTCount,
-                TMobileCarrier: TMobileCount,
-                verizonCarrier: verizonCount,
-              },
-              $setOnInsert: {
-                validDataCounter: validDataCounter,
-                duplicateInMongo: 0,
-                duplicateInBase: csvInBase,
-                badDataCounter: 0,
-                duplicateInFile: 0,
-                nullTypeAndCarrier: csvNullCarrierAndType,
-                ATTCarrier: ATTCount,
-                TMobileCarrier: TMobileCount,
-                verizonCarrier: verizonCount,
-              },
+              $set: { result },
+              $setOnInsert: { result },
             },
             { upsert: true },
           );
-          resolve('Done');
+          resolve(result);
         });
     });
-    await resultPromise;
-    return result;
+    return await resultPromise;
   }
 
   async checkAnalisys(fileName: string) {
@@ -1211,9 +1099,6 @@ export class CsvService {
           await this.csvModel.bulkWrite(bulkOps).then((data) => {
             canadian += data.modifiedCount;
           });
-
-          console.log('done');
-
           resolve(canadian);
         });
     });

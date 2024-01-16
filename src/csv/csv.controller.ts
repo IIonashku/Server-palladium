@@ -189,13 +189,17 @@ export class CsvController {
     }
   }
 
-  @Post('upload')
+  @Post('upload/:method')
   @ApiCsvFiles('files', true, 10)
   @ApiOperation({ summary: 'upload file' })
-  async upload(@UploadedFiles() files: Express.Multer.File[]) {
-    if (files === undefined || files === null || files.length === 0) {
+  async upload(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Param('method') method: string,
+  ) {
+    if (method !== 'upload' && method !== 'update')
+      throw new BadRequestException('Method not provided');
+    if (files === undefined || files === null || files.length === 0)
       throw new BadRequestException('No file founded(file expected)');
-    }
     for (let i = 0; i < files.length; i += 1) {
       numOfFile += 1;
       if (files[i].mimetype !== 'text/csv') {
@@ -209,13 +213,13 @@ export class CsvController {
       const res = new Promise((resolve, reject) => {
         const result = [];
         files.forEach(async (file) => {
-          const fileResult = this.csvService.readFile(file.filename);
+          const fileResult = this.csvService.readFile(file.filename, method);
           fileResult
             .then(async (innerResult) => {
               try {
                 const analis = await this.csvService.saveAnalisys(
                   innerResult,
-                  'upload',
+                  method,
                 );
                 if (analis === 'ERROR')
                   result.push({
@@ -232,71 +236,6 @@ export class CsvController {
                   readingStatus = 'Uploaded';
                   this.csvService.numberOfData = 0;
                   this.csvService.numberOfUploadedData = 0;
-                } else {
-                  numOfFile -= files.length;
-                }
-
-                resolve(result);
-              }
-            })
-            .catch((err) => {
-              reject(err);
-            });
-        });
-      });
-      await res;
-      this.csvService.numberOfData = 0;
-      return { result: await res };
-    } catch (e) {
-      console.log(e);
-      readingStatus = 'ERROR';
-      throw new InternalServerErrorException();
-    }
-  }
-
-  @Post('update')
-  @ApiCsvFiles('files', true, 10)
-  @ApiOperation({ summary: 'upload file' })
-  async update(@UploadedFiles() files: Express.Multer.File[]) {
-    if (files === undefined || files === null || files.length === 0) {
-      throw new BadRequestException('No file founded(file expected)');
-    }
-    for (let i = 0; i < files.length; i += 1) {
-      if (files[i].mimetype !== 'text/csv') {
-        throw new UnsupportedMediaTypeException('Csv file only');
-      }
-    }
-    readingStatus = 'Reading';
-    try {
-      let counter = 0;
-      const res = new Promise((resolve, reject) => {
-        const result = [];
-        files.forEach(async (file) => {
-          const fileResult = this.csvService.updateData(file.filename);
-          fileResult
-            .then(async (innerResult) => {
-              try {
-                const analis = await this.csvService.saveAnalisys(
-                  innerResult,
-                  'update',
-                );
-                if (analis === 'ERROR')
-                  result.push({
-                    error: 'Error',
-                    message: `file: ${file.filename} is already exist`,
-                  });
-                else result.push([await innerResult, file.filename]);
-              } catch {
-                throw new BadRequestException();
-              }
-              counter += 1;
-              if (counter === files.length) {
-                if (numOfFile === files.length) {
-                  readingStatus = 'Uploaded';
-                  this.csvService.numberOfData = 0;
-                  this.csvService.numberOfUploadedData = 0;
-                } else {
-                  numOfFile -= files.length;
                 }
                 resolve(result);
               }
@@ -380,7 +319,7 @@ export class CsvController {
 
   @ApiOperation({ summary: 'set/update all data analisys' })
   @Get('analisys/all/set/')
-  async setData(@Req() req: Request): Promise<string> {
+  async setData(@Req() req: Request): Promise<analisysResultData> {
     const token: any = req.headers;
     const payload: any = this.jwtService.decode(
       token.authorization.split(' ')[1],

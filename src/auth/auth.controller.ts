@@ -120,6 +120,8 @@ export class AuthController {
     );
     if (user) {
       return true;
+    } else if (await this.refreshService.validate(req, {})) {
+      return this.authService.refreshToken(tokens.refresh_token);
     } else return false;
   }
 }

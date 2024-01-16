@@ -32,9 +32,9 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
     try {
-      const payload: any = await this.jwtService.decode(token);
+      const payload: any = this.jwtService.decode(token);
       const founded = await this.authService.findAccessToken(token);
-      if (!founded) {
+      if (!founded || payload.exp < new Date().getTime()) {
         return false;
       }
       request['user'] = payload;
