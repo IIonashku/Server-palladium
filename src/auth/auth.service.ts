@@ -54,8 +54,8 @@ export class AuthService {
     const isMatch = await bcrypt.compare(user.password, loginedUser.password);
     if (isMatch) {
       const tokens: UserUpdateTokenDto = {
-        jwt: await this.jwtService.sign(payload),
-        refresh: await this.jwtService.sign(payload, {
+        jwt: this.jwtService.sign(payload),
+        refresh: this.jwtService.sign(payload, {
           secret: process.env.JWT_REFRESH_SECRET,
         }),
       };
@@ -102,10 +102,10 @@ export class AuthService {
   }
 
   async findRefreshToken(token: string) {
-    return this.userService.findByRefreshToken(token);
+    return await this.userService.findByRefreshToken(token);
   }
 
   async findAccessToken(token: string) {
-    return this.userService.findByAccessToken(token);
+    return await this.userService.findByAccessToken(token);
   }
 }

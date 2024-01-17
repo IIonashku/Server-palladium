@@ -18,12 +18,14 @@ export class RefreshTokenStrategy extends PassportStrategy(
   }
 
   async validate(req: Request, payload: any) {
-    const refreshToken: any = req.headers.refreshtoken;
+    const refreshToken: any = req.headers.refresh_token;
     if (!refreshToken) {
       return false;
     }
     try {
-      const founded = await this.authService.findRefreshToken(refreshToken);
+      const founded = await this.authService.findRefreshToken(
+        refreshToken.split(' ')[1],
+      );
       if (!founded) {
         return false;
       }
