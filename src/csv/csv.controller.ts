@@ -155,7 +155,7 @@ export class CsvController {
   }
 
   @Public()
-  @Get('check/reading')
+  @Get('info/reading')
   isReading() {
     return {
       status: readingStatus,
@@ -166,7 +166,7 @@ export class CsvController {
   }
 
   @Public()
-  @Get('check/export/reading')
+  @Get('info/export/reading')
   isExporting() {
     return {
       exportedData: this.csvService.numberOfExportFile,
