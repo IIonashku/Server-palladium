@@ -35,6 +35,7 @@ import {
   apiResult,
   csvResultData,
   exportResultData,
+  fileUploadResult,
 } from 'src/types/csv.controller.result.types';
 import { csvUpdateCarrierSchema } from 'src/types/csv.types';
 
@@ -211,7 +212,7 @@ export class CsvController {
     try {
       let counter = 0;
       const res = new Promise((resolve, reject) => {
-        const result = [];
+        const result: fileUploadResult[] = [];
         files.forEach(async (file) => {
           const fileResult = this.csvService.readFile(file.filename, method);
           fileResult
@@ -223,10 +224,14 @@ export class CsvController {
                 );
                 if (analis === 'ERROR')
                   result.push({
-                    error: 'Error',
-                    message: `file: ${file.filename} is already exist`,
+                    error: {
+                      error: 'Error',
+                      message: `file: ${file.filename} is already exist`,
+                    },
+                    filename: file.filename,
                   });
-                else result.push([innerResult, file.filename]);
+                else
+                  result.push({ file: innerResult, filename: file.filename });
               } catch {
                 throw new BadRequestException();
               }

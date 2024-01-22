@@ -1045,8 +1045,17 @@ export class CsvService {
           await this.analisysModel.updateOne(
             { fileName: 'DBInfo' },
             {
-              $set: { result },
-              $setOnInsert: { result },
+              $set: {
+                nullTypeAndCarrier: result.nullTypeAndCarrier,
+                duplicateInBase: result.duplicateInBase,
+                ATTCarrier: result.ATTCarrier,
+                TMobileCarrier: result.TMobileCarrier,
+                verizonCarrier: result.verizonCarrier,
+                validDataCounter: result.validDataCounter,
+                duplicateInMongo: result.duplicateInMongo,
+                duplicateInFile: result.duplicateInFile,
+                badDataCounter: result.badDataCounter,
+              },
             },
             { upsert: true },
           );

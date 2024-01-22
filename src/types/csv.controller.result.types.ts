@@ -1,4 +1,4 @@
-import { analisysCreateSchema, deviceType } from './csv.types';
+import { deviceType } from './csv.types';
 
 export type csvResultData = {
   phoneNumber: string;
@@ -40,10 +40,25 @@ export type apiResult = {
   invalid: number;
   canadian: number;
 };
+export type fileUploadResult = {
+  filename: string;
+  file?: fileResult;
+  error?: fileError;
+};
 
-export type uploadFileResult = {
-  fileName: string;
-  analis?: Partial<analisysCreateSchema>;
-  error?: string;
-  message?: string;
+type fileResult = {
+  duplicateInFile: number;
+  duplicateInMongo: number;
+  duplicateInBase: number;
+  badDataCounter: number;
+  validDataCounter: number;
+  nullTypeAndCarrier: number;
+  ATTCarrier: number;
+  TMobileCarrier: number;
+  verizonCarrier: number;
+};
+
+type fileError = {
+  error: string;
+  message: string;
 };
